@@ -1,0 +1,39 @@
+# IDE and operating-system files
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Codex/local working artifacts
+.codex/
+.codex-prd-render/
+**/.codex/
+
+# Java/Maven build output
+**/target/
+*.class
+*.log
+
+# JavaScript dependencies and generated output
+**/node_modules/
+**/dist/
+**/unpackage/
+**/.vite/
+
+# Local runtime data and secrets
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+**/data/
+**/logs/
+**/deploy/mysql/backups/
+
+# Temporary and backup files
+~$*
+*.tmp
+*.bak
+TripAgency.zip

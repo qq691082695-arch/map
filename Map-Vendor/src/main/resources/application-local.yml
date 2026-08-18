@@ -1,0 +1,12 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    password: ninnikuuu.
+  flyway:
+    password: ninnikuuu.
+
+logging:
+  level:
+    com.mapvendor: DEBUG

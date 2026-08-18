@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mapvendor.module.university.repository.UniversityMapper">
+    <sql id="activeFilter">
+        deleted_at IS NULL
+        <if test="keyword != null and keyword != ''">AND name LIKE CONCAT('%', #{keyword}, '%')</if>
+        <if test="status != null and status != ''">AND status = #{status}</if>
+    </sql>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM university WHERE <include refid="activeFilter"/>
+    </select>
+
+    <select id="selectPage" resultType="com.mapvendor.module.university.repository.UniversityRow">
+        SELECT id, name, intro, polygon_json, status, created_at, updated_at
+        FROM university WHERE <include refid="activeFilter"/>
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectById" resultType="com.mapvendor.module.university.repository.UniversityRow">
+        SELECT id, name, intro, polygon_json, status, created_at, updated_at
+        FROM university WHERE id = #{id} AND deleted_at IS NULL
+    </select>
+
+    <select id="selectImages" resultType="com.mapvendor.module.university.repository.UniversityImageRow">
+        SELECT fr.id AS resource_id, fr.public_url, ufr.sort_no
+        FROM university_file_relation ufr
+        JOIN file_resource fr ON fr.id = ufr.file_resource_id
+        WHERE ufr.university_id = #{universityId}
+          AND fr.status = 'ACTIVE' AND fr.deleted_at IS NULL
+        ORDER BY ufr.sort_no ASC, ufr.file_resource_id ASC
+    </select>
+
+    <select id="countActiveResources" resultType="int">
+        SELECT COUNT(*) FROM file_resource
+        WHERE status = 'ACTIVE' AND deleted_at IS NULL AND id IN
+        <foreach collection="resourceIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </select>
+
+    <insert id="insert" parameterType="com.mapvendor.module.university.repository.UniversityRow"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO university (name, intro, polygon_json, status)
+        VALUES (#{name}, #{intro}, #{polygonJson}, #{status})
+    </insert>
+
+    <update id="update">
+        UPDATE university SET name = #{name}, intro = #{intro}, polygon_json = #{polygonJson}
+        WHERE id = #{id} AND deleted_at IS NULL
+    </update>
+
+    <update id="updateStatus">
+        UPDATE university SET status = #{status} WHERE id = #{id} AND deleted_at IS NULL
+    </update>
+
+    <update id="softDelete">
+        UPDATE university SET deleted_at = CURRENT_TIMESTAMP(3) WHERE id = #{id} AND deleted_at IS NULL
+    </update>
+
+    <delete id="deleteImageRelations">DELETE FROM university_file_relation WHERE university_id = #{universityId}</delete>
+    <insert id="insertImageRelation">
+        INSERT INTO university_file_relation (university_id, file_resource_id, sort_no)
+        VALUES (#{universityId}, #{resourceId}, #{sortNo})
+    </insert>
+</mapper>

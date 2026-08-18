@@ -1,0 +1,58 @@
+limit_req_zone $binary_remote_addr zone=app_api:10m rate=20r/s;
+limit_req_zone $binary_remote_addr zone=admin_api:10m rate=5r/s;
+
+server {
+    listen 443 ssl http2;
+    server_name api.example.com;
+
+    ssl_certificate     C:/nginx/certs/fullchain.pem;
+    ssl_certificate_key C:/nginx/certs/private.key;
+
+    client_max_body_size 10m;
+
+    # Replace these example private ranges with the production VPN/internal allowlist.
+    location /api/v1/admin/ {
+        allow 10.0.0.0/8;
+        allow 172.16.0.0/12;
+        allow 192.168.0.0/16;
+        deny all;
+        limit_req zone=admin_api burst=10 nodelay;
+        access_log logs/map_vendor_admin_audit.log combined;
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Request-Id $request_id;
+    }
+
+    location /api/v1/app/ {
+        limit_req zone=app_api burst=40 nodelay;
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Request-Id $request_id;
+    }
+
+    location /api/ { return 404; }
+
+    location /files/ {
+        alias D:/Map-Vendor-Data/images/;
+        add_header X-Content-Type-Options nosniff always;
+        expires 7d;
+    }
+
+    location /actuator/health {
+        proxy_pass http://127.0.0.1:8080;
+        allow 127.0.0.1;
+        deny all;
+    }
+}
+
+server {
+    listen 80;
+    server_name api.example.com;
+    return 301 https://$host$request_uri;
+}

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mapvendor.module.app.map.query.AppMapQueryMapper">
+
+    <select id="selectVisibleUniversities"
+            resultType="com.mapvendor.module.app.map.query.UniversityMapRow">
+        SELECT u.id,
+               u.name,
+               u.intro,
+               u.polygon_json,
+               fr.public_url AS image_url
+        FROM university u
+        LEFT JOIN university_file_relation ufr
+               ON ufr.university_id = u.id
+        LEFT JOIN file_resource fr
+               ON fr.id = ufr.file_resource_id
+              AND fr.status = 'ACTIVE'
+              AND fr.deleted_at IS NULL
+        WHERE u.status = 'ENABLED'
+          AND u.deleted_at IS NULL
+        ORDER BY u.id ASC, ufr.sort_no ASC, ufr.file_resource_id ASC
+    </select>
+
+    <select id="selectVisibleBusinesses"
+            resultType="com.mapvendor.module.app.map.query.BusinessMapRow">
+        SELECT b.id,
+               b.name,
+               b.business_type,
+               b.address,
+               b.longitude,
+               b.latitude,
+               b.intro,
+               (
+                   SELECT fr.public_url
+                   FROM business_file_relation bfr
+                   JOIN file_resource fr ON fr.id = bfr.file_resource_id
+                   WHERE bfr.business_id = b.id
+                     AND fr.status = 'ACTIVE'
+                     AND fr.deleted_at IS NULL
+                   ORDER BY bfr.sort_no ASC, bfr.file_resource_id ASC
+                   LIMIT 1
+               ) AS cover_image_url
+        FROM business b
+        WHERE b.status = 'ENABLED'
+          AND b.deleted_at IS NULL
+        <if test="type != null">
+          AND b.business_type = #{type}
+        </if>
+        ORDER BY b.business_type ASC, b.id ASC
+    </select>
+
+</mapper>

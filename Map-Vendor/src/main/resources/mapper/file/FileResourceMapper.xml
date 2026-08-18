@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mapvendor.module.file.repository.FileResourceMapper">
+  <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO file_resource(storage_key,public_url,original_name,mime_type,size_bytes,sha256,status)
+    VALUES(#{storageKey},#{publicUrl},#{originalName},#{mimeType},#{sizeBytes},#{sha256},'ACTIVE')
+  </insert>
+  <select id="selectActiveByStorageKey" resultType="com.mapvendor.module.file.repository.FileResourceRow">
+    SELECT id,storage_key,public_url,original_name,mime_type,size_bytes,sha256
+    FROM file_resource WHERE storage_key=#{storageKey} AND status='ACTIVE' AND deleted_at IS NULL
+  </select>
+</mapper>

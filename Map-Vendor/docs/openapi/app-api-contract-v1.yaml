@@ -1,0 +1,418 @@
+openapi: 3.0.3
+info:
+  title: Map Vendor App API Contract
+  version: 1.0.0-contract
+  description: >-
+    小程序联调冻结契约。系统使用者只有微信小程序用户和平台管理员；服务商（business）
+    仅是平台管理员维护的业务数据，不是登录角色，不拥有账号、后台或认证上下文。
+    小程序接口接收前端传入的 openid 作为订单归属辨别字段，但这不构成强认证。
+    管理员后台与小程序登录均由前端完成；Java 后端不提供登录、密码校验、Session、JWT
+    或管理端令牌。/api/v1/admin/** 当前无后端认证，必须由 Nginx 网络访问限制、HTTPS、
+    限流和审计保护；不得新增 /api/v1/merchant/**。
+    该文件描述目标接口，不代表接口已经实现；实现进度以代码和测试为准。
+servers:
+  - url: /api/v1/app
+tags:
+  - name: AppMap
+  - name: AppBusiness
+  - name: AppOrder
+paths:
+  /map-overview:
+    get:
+      tags: [AppMap]
+      summary: 获取高校区域与商家地图聚合数据
+      parameters:
+        - in: query
+          name: type
+          description: 可选；仅筛选商家，高校区域不随该参数变化
+          schema:
+            $ref: '#/components/schemas/BusinessType'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MapOverview'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /businesses/{id}:
+    get:
+      tags: [AppBusiness]
+      summary: 获取商家公开详情
+      parameters:
+        - $ref: '#/components/parameters/BusinessId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BusinessDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /orders:
+    post:
+      tags: [AppOrder]
+      summary: 创建预约订单
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '200':
+          description: 创建成功或返回同一幂等请求的既有结果
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/OrderDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    get:
+      tags: [AppOrder]
+      summary: 按前端传入的 openid 查询订单
+      parameters:
+        - $ref: '#/components/parameters/Openid'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/OrderPage'
+  /orders/{id}:
+    get:
+      tags: [AppOrder]
+      summary: 按 openid 查询订单详情
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+        - $ref: '#/components/parameters/Openid'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/OrderDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /orders/{id}/cancel:
+    post:
+      tags: [AppOrder]
+      summary: 用户取消自己的待确认订单
+      description: 仅订单所属 openid 可取消 PENDING 订单；CONFIRMED 和 CANCELLED 均为终态
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelOrderRequest'
+      responses:
+        '200':
+          description: 取消成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/OrderDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+components:
+  parameters:
+    BusinessId:
+      in: path
+      name: id
+      required: true
+      schema: {type: integer, format: int64, minimum: 1}
+    OrderId:
+      in: path
+      name: id
+      required: true
+      schema: {type: integer, format: int64, minimum: 1}
+    Openid:
+      in: query
+      name: openid
+      required: true
+      description: 前端传入的用户标识，不是强认证凭据
+      schema: {type: string, minLength: 1, maxLength: 128}
+    Page:
+      in: query
+      name: page
+      schema: {type: integer, minimum: 1, default: 1}
+    PageSize:
+      in: query
+      name: pageSize
+      schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: true
+      schema: {type: string, minLength: 1, maxLength: 128}
+  responses:
+    BadRequest:
+      description: 参数或字段校验失败
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ApiResponse'}
+    NotFound:
+      description: 资源不存在或对小程序不可见
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ApiResponse'}
+    Conflict:
+      description: 状态、幂等或业务规则冲突
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ApiResponse'}
+  schemas:
+    ApiResponse:
+      type: object
+      required: [code, message, data, requestId]
+      properties:
+        code: {type: string}
+        message: {type: string}
+        data: {nullable: true}
+        requestId: {type: string, nullable: true}
+    BusinessType:
+      type: string
+      enum: [TRAVEL, HOTEL, FOOD]
+    OrderStatus:
+      type: string
+      enum: [PENDING, CONFIRMED, CANCELLED]
+    ServiceMode:
+      type: string
+      enum: [DAY_CHARTER, ROUND_TRIP]
+    MealPeriod:
+      type: string
+      enum: [BREAKFAST, LUNCH, DINNER]
+    CancelSource:
+      type: string
+      description: 用户取消或平台管理员取消；不存在服务商操作来源
+      enum: [USER, ADMIN]
+    GeoPoint:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude: {type: number, format: double, minimum: -90, maximum: 90}
+        longitude: {type: number, format: double, minimum: -180, maximum: 180}
+    UniversityMapItem:
+      type: object
+      required: [id, name, polygonPoints, imageUrls]
+      properties:
+        id: {type: integer, format: int64}
+        name: {type: string}
+        intro: {type: string, nullable: true}
+        polygonPoints:
+          type: array
+          minItems: 3
+          items: {$ref: '#/components/schemas/GeoPoint'}
+        imageUrls:
+          type: array
+          items: {type: string}
+    BusinessMapItem:
+      type: object
+      required: [id, name, businessType, address, longitude, latitude]
+      properties:
+        id: {type: integer, format: int64}
+        name: {type: string}
+        businessType: {$ref: '#/components/schemas/BusinessType'}
+        address: {type: string}
+        longitude: {type: number, format: double}
+        latitude: {type: number, format: double}
+        intro: {type: string, nullable: true}
+        coverImageUrl: {type: string, nullable: true}
+    MapOverview:
+      type: object
+      required: [universities, businesses]
+      properties:
+        universities:
+          type: array
+          items: {$ref: '#/components/schemas/UniversityMapItem'}
+        businesses:
+          type: array
+          items: {$ref: '#/components/schemas/BusinessMapItem'}
+    BusinessCommon:
+      allOf:
+        - $ref: '#/components/schemas/BusinessMapItem'
+        - type: object
+          required: [imageUrls]
+          properties:
+            imageUrls:
+              type: array
+              items: {type: string}
+    CarItem:
+      type: object
+      required: [id, model, seatNum]
+      properties:
+        id: {type: integer, format: int64}
+        model: {type: string}
+        seatNum: {type: integer, minimum: 1}
+        description: {type: string, nullable: true}
+        imageUrl: {type: string, nullable: true}
+    RoomItem:
+      type: object
+      required: [id, name, bedSpec]
+      properties:
+        id: {type: integer, format: int64}
+        name: {type: string}
+        bedSpec: {type: string}
+        description: {type: string, nullable: true}
+        imageUrl: {type: string, nullable: true}
+    DishItem:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer, format: int64}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        imageUrl: {type: string, nullable: true}
+    TravelDetail:
+      type: object
+      required: [kind, cars]
+      properties:
+        kind: {type: string, enum: [TRAVEL]}
+        cars:
+          type: array
+          items: {$ref: '#/components/schemas/CarItem'}
+    HotelDetail:
+      type: object
+      required: [kind, rooms]
+      properties:
+        kind: {type: string, enum: [HOTEL]}
+        rooms:
+          type: array
+          items: {$ref: '#/components/schemas/RoomItem'}
+    FoodDetail:
+      type: object
+      required: [kind, dishes]
+      properties:
+        kind: {type: string, enum: [FOOD]}
+        contactName: {type: string, nullable: true}
+        contactPhone: {type: string, nullable: true}
+        recommendedDishes: {type: string, nullable: true}
+        dishes:
+          type: array
+          items: {$ref: '#/components/schemas/DishItem'}
+    BusinessDetail:
+      type: object
+      required: [common, detail]
+      properties:
+        common: {$ref: '#/components/schemas/BusinessCommon'}
+        detail:
+          oneOf:
+            - $ref: '#/components/schemas/TravelDetail'
+            - $ref: '#/components/schemas/HotelDetail'
+            - $ref: '#/components/schemas/FoodDetail'
+          discriminator:
+            propertyName: kind
+    CreateOrderRequest:
+      type: object
+      required: [openid, contactName, contactPhone, peopleNum, serviceDate, businessId, serviceType]
+      properties:
+        openid: {type: string, minLength: 1, maxLength: 128}
+        contactName: {type: string, minLength: 1, maxLength: 64}
+        contactPhone: {type: string, minLength: 1, maxLength: 32}
+        peopleNum: {type: integer, minimum: 1}
+        serviceDate: {type: string, format: date}
+        businessId: {type: integer, format: int64, minimum: 1}
+        serviceType: {$ref: '#/components/schemas/BusinessType'}
+        carId: {type: integer, format: int64, minimum: 1}
+        carQuantity: {type: integer, minimum: 1}
+        serviceMode: {$ref: '#/components/schemas/ServiceMode'}
+        roomId: {type: integer, format: int64, minimum: 1}
+        roomQuantity: {type: integer, minimum: 1}
+        mealPeriod: {$ref: '#/components/schemas/MealPeriod'}
+      description: >-
+        TRAVEL 必须提交 carId/carQuantity/serviceMode；HOTEL 必须提交
+        roomId/roomQuantity；FOOD 必须提交 mealPeriod。不同类型专属字段互斥。
+    CancelOrderRequest:
+      type: object
+      required: [openid]
+      properties:
+        openid:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: 前端传入的订单归属辨别字段，不是强认证凭据
+    OrderDetail:
+      type: object
+      required: [id, orderNo, businessId, businessNameSnapshot, serviceType, contactName,
+        contactPhone, peopleNum, serviceDate, status, createdAt, updatedAt]
+      properties:
+        id: {type: integer, format: int64}
+        orderNo: {type: string}
+        businessId: {type: integer, format: int64}
+        businessNameSnapshot: {type: string}
+        serviceType: {$ref: '#/components/schemas/BusinessType'}
+        contactName: {type: string}
+        contactPhone: {type: string, description: 列表或非必要场景应脱敏}
+        peopleNum: {type: integer, minimum: 1}
+        serviceDate: {type: string, format: date}
+        status: {$ref: '#/components/schemas/OrderStatus'}
+        carId: {type: integer, format: int64, nullable: true}
+        carSpecSnapshot: {type: string, nullable: true}
+        carQuantity: {type: integer, nullable: true}
+        serviceMode: {allOf: [{$ref: '#/components/schemas/ServiceMode'}], nullable: true}
+        roomId: {type: integer, format: int64, nullable: true}
+        roomSpecSnapshot: {type: string, nullable: true}
+        roomQuantity: {type: integer, nullable: true}
+        mealPeriod: {allOf: [{$ref: '#/components/schemas/MealPeriod'}], nullable: true}
+        confirmedAt: {type: string, format: date-time, nullable: true}
+        cancelledAt: {type: string, format: date-time, nullable: true}
+        cancelSource: {allOf: [{$ref: '#/components/schemas/CancelSource'}], nullable: true}
+        cancelReason: {type: string, nullable: true}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+    OrderPage:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/OrderDetail'}
+        page: {type: integer, minimum: 1}
+        pageSize: {type: integer, minimum: 1, maximum: 100}
+        total: {type: integer, format: int64, minimum: 0}

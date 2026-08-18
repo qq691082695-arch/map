@@ -1,0 +1,29 @@
+name: backend-ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: '8'
+          cache: maven
+      - name: Verify with JDK 8
+        run: ./mvnw --batch-mode --no-transfer-progress clean verify
+      - name: Enforce backend identity boundaries
+        shell: bash
+        run: |
+          if rg -n -i 'code2Session|wx\.login|wechat.*secret|mini.*jwt|BackendPrincipal|MerchantScope|SecurityFilterChain|PasswordEncoder|/api/v1/merchant/' src/main/java pom.xml; then
+            echo 'Forbidden backend login or merchant-role implementation detected.'
+            exit 1
+          fi
+          if rg -n -i '^\s*/.*(login|logout|token|password)' docs/openapi; then
+            echo 'Forbidden backend login path detected in OpenAPI.'
+            exit 1
+          fi

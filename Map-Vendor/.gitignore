@@ -1,0 +1,10 @@
+target/
+.idea/
+*.iml
+.vscode/
+.env
+data/
+logs/
+.codex/
+*.log
+!src/main/resources/db/migration/.gitkeep

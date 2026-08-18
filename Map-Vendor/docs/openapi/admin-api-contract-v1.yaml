@@ -1,0 +1,317 @@
+openapi: 3.0.3
+info:
+  title: Map Vendor Admin API
+  version: v1
+  description: 管理端登录由前端完成，后端不认证；/api/v1/admin/** 必须由 Nginx 网络边界、HTTPS、限流和审计保护。
+paths:
+  /api/v1/admin/files/images:
+    post:
+      summary: 上传 JPEG、PNG 或 WebP 图片到服务器本地存储
+      parameters: [{$ref: '#/components/parameters/RequestId'}]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties: {file: {type: string, format: binary}}
+      responses:
+        '200': {description: 成功, content: {application/json: {schema: {$ref: '#/components/schemas/ImageResourceResponse'}}}}
+        '400': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/admin/universities:
+    get:
+      summary: 分页查询高校
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: pageSize, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: keyword, in: query, schema: {type: string}}
+        - {name: status, in: query, schema: {$ref: '#/components/schemas/UniversityStatus'}}
+      responses:
+        '200':
+          description: 成功
+          content: {application/json: {schema: {$ref: '#/components/schemas/UniversityPageResponse'}}}
+    post:
+      summary: 新增高校
+      parameters: [{$ref: '#/components/parameters/RequestId'}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/UniversitySaveRequest'}}}
+      responses:
+        '200': {$ref: '#/components/responses/UniversityResponse'}
+        '400': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/admin/universities/{id}:
+    parameters: [{$ref: '#/components/parameters/UniversityId'}]
+    get:
+      summary: 查询高校详情
+      responses:
+        '200': {$ref: '#/components/responses/UniversityResponse'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    put:
+      summary: 编辑高校并整体替换图片关联
+      parameters: [{$ref: '#/components/parameters/RequestId'}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/UniversitySaveRequest'}}}
+      responses:
+        '200': {$ref: '#/components/responses/UniversityResponse'}
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    delete:
+      summary: 逻辑删除高校
+      parameters: [{$ref: '#/components/parameters/RequestId'}]
+      responses:
+        '200':
+          description: 成功
+          content: {application/json: {schema: {$ref: '#/components/schemas/EmptyResponse'}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/admin/universities/{id}/status:
+    parameters:
+      - {$ref: '#/components/parameters/UniversityId'}
+      - {$ref: '#/components/parameters/RequestId'}
+    patch:
+      summary: 启用或禁用高校
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties: {status: {$ref: '#/components/schemas/UniversityStatus'}}
+      responses:
+        '200': {$ref: '#/components/responses/UniversityResponse'}
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/admin/businesses:
+    get:
+      summary: 分页查询服务商
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: pageSize, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: keyword, in: query, description: 匹配名称或地址, schema: {type: string}}
+        - {name: type, in: query, schema: {$ref: '#/components/schemas/BusinessType'}}
+        - {name: status, in: query, schema: {$ref: '#/components/schemas/BusinessStatus'}}
+      responses:
+        '200': {description: 成功, content: {application/json: {schema: {$ref: '#/components/schemas/BusinessPageResponse'}}}}
+    post:
+      summary: 新增服务商（服务商不是账号或系统角色）
+      parameters: [{$ref: '#/components/parameters/RequestId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/BusinessSaveRequest'}}}}
+      responses:
+        '200': {$ref: '#/components/responses/BusinessResponse'}
+        '400': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/admin/businesses/{id}:
+    parameters: [{$ref: '#/components/parameters/BusinessId'}]
+    get:
+      summary: 查询服务商详情
+      responses:
+        '200': {$ref: '#/components/responses/BusinessResponse'}
+        '404': {$ref: '#/components/responses/BusinessNotFound'}
+    put:
+      summary: 编辑服务商（businessType 不可修改）
+      parameters: [{$ref: '#/components/parameters/RequestId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/BusinessSaveRequest'}}}}
+      responses:
+        '200': {$ref: '#/components/responses/BusinessResponse'}
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '404': {$ref: '#/components/responses/BusinessNotFound'}
+    delete:
+      summary: 逻辑删除服务商，保留历史订单引用与快照
+      parameters: [{$ref: '#/components/parameters/RequestId'}]
+      responses:
+        '200': {description: 成功, content: {application/json: {schema: {$ref: '#/components/schemas/EmptyResponse'}}}}
+        '404': {$ref: '#/components/responses/BusinessNotFound'}
+  /api/v1/admin/businesses/{id}/status:
+    parameters:
+      - {$ref: '#/components/parameters/BusinessId'}
+      - {$ref: '#/components/parameters/RequestId'}
+    patch:
+      summary: 启用或禁用服务商
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, required: [status], properties: {status: {$ref: '#/components/schemas/BusinessStatus'}}}}}
+      responses:
+        '200': {$ref: '#/components/responses/BusinessResponse'}
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '404': {$ref: '#/components/responses/BusinessNotFound'}
+  /api/v1/admin/businesses/{businessId}/cars:
+    get: {summary: 分页查询车辆, responses: {'200': {description: 成功}}}
+    post: {summary: 新增车辆, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CarSaveRequest'}}}}, responses: {'200': {description: 成功}}}
+  /api/v1/admin/businesses/{businessId}/cars/{id}:
+    get: {summary: 查询车辆详情, responses: {'200': {description: 成功}}}
+    put: {summary: 编辑车辆, responses: {'200': {description: 成功}}}
+    delete: {summary: 逻辑删除车辆, responses: {'200': {description: 成功}}}
+  /api/v1/admin/businesses/{businessId}/cars/{id}/status:
+    patch: {summary: 启停车辆, responses: {'200': {description: 成功}}}
+  /api/v1/admin/businesses/{businessId}/rooms:
+    get: {summary: 分页查询房型, responses: {'200': {description: 成功}}}
+    post: {summary: 新增房型, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/RoomSaveRequest'}}}}, responses: {'200': {description: 成功}}}
+  /api/v1/admin/businesses/{businessId}/rooms/{id}:
+    get: {summary: 查询房型详情, responses: {'200': {description: 成功}}}
+    put: {summary: 编辑房型, responses: {'200': {description: 成功}}}
+    delete: {summary: 逻辑删除房型, responses: {'200': {description: 成功}}}
+  /api/v1/admin/businesses/{businessId}/rooms/{id}/status:
+    patch: {summary: 启停房型, responses: {'200': {description: 成功}}}
+  /api/v1/admin/businesses/{businessId}/dishes:
+    get: {summary: 分页查询菜品, responses: {'200': {description: 成功}}}
+    post: {summary: 新增菜品, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DishSaveRequest'}}}}, responses: {'200': {description: 成功}}}
+  /api/v1/admin/businesses/{businessId}/dishes/{id}:
+    get: {summary: 查询菜品详情, responses: {'200': {description: 成功}}}
+    put: {summary: 编辑菜品, responses: {'200': {description: 成功}}}
+    delete: {summary: 逻辑删除菜品, responses: {'200': {description: 成功}}}
+  /api/v1/admin/businesses/{businessId}/dishes/{id}/status:
+    patch: {summary: 启停菜品, responses: {'200': {description: 成功}}}
+components:
+  parameters:
+    UniversityId: {name: id, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
+    BusinessId: {name: id, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
+    RequestId: {name: X-Request-Id, in: header, required: false, schema: {type: string, maxLength: 64}}
+  schemas:
+    UniversityStatus: {type: string, enum: [ENABLED, DISABLED]}
+    BusinessType: {type: string, enum: [TRAVEL, HOTEL, FOOD]}
+    BusinessStatus: {type: string, enum: [ENABLED, DISABLED]}
+    ResourceStatus: {type: string, enum: [ENABLED, DISABLED]}
+    CarSaveRequest:
+      type: object
+      required: [model, seatNum]
+      properties: {model: {type: string, maxLength: 128}, seatNum: {type: integer, minimum: 1}, description: {type: string, maxLength: 500, nullable: true}, imageResourceId: {type: integer, format: int64, nullable: true}}
+    RoomSaveRequest:
+      type: object
+      required: [name, bedSpec]
+      properties: {name: {type: string, maxLength: 128}, bedSpec: {type: string, maxLength: 128}, description: {type: string, maxLength: 500, nullable: true}, imageResourceId: {type: integer, format: int64, nullable: true}}
+    DishSaveRequest:
+      type: object
+      required: [name, sortNo]
+      properties: {name: {type: string, maxLength: 128}, description: {type: string, maxLength: 500, nullable: true}, imageResourceId: {type: integer, format: int64, nullable: true}, sortNo: {type: integer, minimum: 0}}
+    BusinessSaveRequest:
+      type: object
+      required: [name, address, longitude, latitude, businessType]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 128}
+        address: {type: string, minLength: 1, maxLength: 255}
+        longitude: {type: number, minimum: -180, maximum: 180}
+        latitude: {type: number, minimum: -90, maximum: 90}
+        businessType: {$ref: '#/components/schemas/BusinessType'}
+        intro: {type: string, nullable: true}
+        foodContactName: {type: string, maxLength: 64, nullable: true, description: 仅 FOOD}
+        foodContactPhone: {type: string, maxLength: 32, nullable: true, description: 仅 FOOD}
+        foodRecommendedDishes: {type: string, maxLength: 500, nullable: true, description: 仅 FOOD}
+        imageResourceIds: {type: array, maxItems: 20, uniqueItems: true, items: {type: integer, format: int64}}
+    Business:
+      allOf:
+        - {$ref: '#/components/schemas/BusinessSaveRequest'}
+        - type: object
+          required: [id, status, createdAt, updatedAt]
+          properties:
+            id: {type: integer, format: int64}
+            status: {$ref: '#/components/schemas/BusinessStatus'}
+            createdAt: {type: string, format: date-time}
+            updatedAt: {type: string, format: date-time}
+    GeoPoint:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude: {type: number, minimum: -90, maximum: 90}
+        longitude: {type: number, minimum: -180, maximum: 180}
+    UniversitySaveRequest:
+      type: object
+      required: [name, polygonPoints]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 128}
+        intro: {type: string, nullable: true}
+        polygonPoints: {type: array, minItems: 3, items: {$ref: '#/components/schemas/GeoPoint'}}
+        imageResourceIds: {type: array, maxItems: 20, uniqueItems: true, items: {type: integer, format: int64}}
+    UniversityImage:
+      type: object
+      required: [resourceId, url, sortNo]
+      properties:
+        resourceId: {type: integer, format: int64}
+        url: {type: string}
+        sortNo: {type: integer, minimum: 0}
+    ImageResource:
+      type: object
+      required: [resourceId, url, mimeType, sizeBytes]
+      properties:
+        resourceId: {type: integer, format: int64}
+        url: {type: string, example: /files/2026/08/random.webp}
+        mimeType: {type: string, enum: [image/jpeg, image/png, image/webp]}
+        sizeBytes: {type: integer, format: int64, minimum: 1}
+    ImageResourceResponse:
+      allOf:
+        - {$ref: '#/components/schemas/ErrorResponse'}
+        - {type: object, properties: {data: {$ref: '#/components/schemas/ImageResource'}}}
+    University:
+      type: object
+      required: [id, name, polygonPoints, status, images, createdAt, updatedAt]
+      properties:
+        id: {type: integer, format: int64}
+        name: {type: string}
+        intro: {type: string, nullable: true}
+        polygonPoints: {type: array, items: {$ref: '#/components/schemas/GeoPoint'}}
+        status: {$ref: '#/components/schemas/UniversityStatus'}
+        images: {type: array, items: {$ref: '#/components/schemas/UniversityImage'}}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+    ErrorResponse:
+      type: object
+      required: [code, message, requestId]
+      properties:
+        code: {type: string}
+        message: {type: string}
+        data: {nullable: true}
+        requestId: {type: string}
+    EmptyResponse:
+      allOf:
+        - {$ref: '#/components/schemas/ErrorResponse'}
+        - {type: object, properties: {code: {example: OK}, message: {example: success}}}
+    UniversityResponse:
+      allOf:
+        - {$ref: '#/components/schemas/ErrorResponse'}
+        - {type: object, properties: {data: {$ref: '#/components/schemas/University'}}}
+    UniversityPageResponse:
+      allOf:
+        - {$ref: '#/components/schemas/ErrorResponse'}
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [items, total, page, pageSize]
+              properties:
+                items: {type: array, items: {$ref: '#/components/schemas/University'}}
+                total: {type: integer, format: int64}
+                page: {type: integer}
+                pageSize: {type: integer}
+    BusinessResponse:
+      allOf:
+        - {$ref: '#/components/schemas/ErrorResponse'}
+        - {type: object, properties: {data: {$ref: '#/components/schemas/Business'}}}
+    BusinessPageResponse:
+      allOf:
+        - {$ref: '#/components/schemas/ErrorResponse'}
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [items, total, page, pageSize]
+              properties:
+                items: {type: array, items: {$ref: '#/components/schemas/Business'}}
+                total: {type: integer, format: int64}
+                page: {type: integer}
+                pageSize: {type: integer}
+  responses:
+    UniversityResponse:
+      description: 成功
+      content: {application/json: {schema: {$ref: '#/components/schemas/UniversityResponse'}}}
+    BusinessResponse:
+      description: 成功
+      content: {application/json: {schema: {$ref: '#/components/schemas/BusinessResponse'}}}
+    ValidationError:
+      description: 参数或业务校验失败
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}
+    NotFound:
+      description: 高校不存在或已逻辑删除
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}
+    BusinessNotFound:
+      description: 服务商不存在或已逻辑删除
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}
