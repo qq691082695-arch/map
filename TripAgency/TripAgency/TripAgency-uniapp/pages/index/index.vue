@@ -13,6 +13,9 @@
       @markertap="onMarkerTap"
     ></map>
 
+    <!-- 我的预约入口 -->
+    <view class="my-orders-btn" @click="gotoOrders">我的预约</view>
+
     <!-- 底部大分类按钮 + 点击某类后出现的列表 -->
     <view class="bottom-panel">
       <!-- 分类大按钮 -->
@@ -53,8 +56,10 @@
               @click="openShopPopup(item)"
             >
               <view class="card-tag">{{ item.typeLabel }}</view>
+              <image v-if="item.coverImageUrl" class="card-img" :src="item.coverImageUrl" mode="aspectFill" />
               <view class="card-name">{{ item.name }}</view>
               <view class="card-addr">{{ item.address }}</view>
+              <view class="card-intro">{{ item.intro }}</view>
             </view>
           </view>
         </scroll-view>
@@ -66,40 +71,13 @@
       <view class="popup" @click.stop>
         <view class="popup-title">商家详情</view>
         <view class="popup-content" v-if="currentShop">
+          <image v-if="currentShop.coverImageUrl" class="popup-img" :src="currentShop.coverImageUrl" mode="aspectFill"></image>
           <view class="row"><text class="label">商家名称：</text><text>{{ currentShop.name }}</text></view>
           <view class="row"><text class="label">服务类别：</text><text>{{ currentShop.typeLabel }}</text></view>
           <view class="row"><text class="label">地址：</text><text>{{ currentShop.address }}</text></view>
-
-          <!-- 🚗出行：服务商介绍，无其他子项 -->
-          <view v-if="currentShop.type === 'travel'" class="desc-block">
+          <view class="desc-block">
             <view class="label">服务商介绍：</view>
             <view class="desc-text">{{ currentShop.intro }}</view>
-          </view>
-
-          <!-- 🏨酒店：多房型展示 -->
-          <view v-if="currentShop.type === 'hotel'" class="desc-block">
-            <view class="label">房型列表：</view>
-            <view class="item-card" v-for="(room,idx) in currentShop.roomList" :key="idx">
-              <text>{{ room.roomName }}</text>
-              <text class="price">{{ room.price }}</text>
-            </view>
-          </view>
-
-          <!-- 🍜餐饮：菜系标签 + 人均 -->
-          <view v-if="currentShop.type === 'food'" class="desc-block">
-            <view class="row">
-              <text class="label">人均消费：</text>
-              <text class="price">{{ currentShop.avgPrice }}</text>
-            </view>
-            <view class="label">菜系分类：</view>
-            <view class="tag-wrap">
-              <text class="cuisine-tag" v-for="tag in currentShop.cuisineList" :key="tag">{{tag}}</text>
-            </view>
-          </view>
-
-          <view class="row">
-            <text class="label">备注简介：</text>
-            <text>{{ currentShop.desc }}</text>
           </view>
         </view>
 
@@ -114,6 +92,10 @@
 
 <script setup>
 import { ref, computed, nextTick, getCurrentInstance } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { getMapOverview } from '../../api/app'
+import { SERVICE_TYPE_MAP } from '../../common/config'
+import { resolveImg } from '../../common/util'
 
 const { proxy } = getCurrentInstance()
 
@@ -136,8 +118,8 @@ const catTabs = [
   { type: 'food',   label: '饮食', emoji: '🍜' }
 ]
 
-// ==========武汉大学主校区（文理学部+工学部+信息学部）红色区域==========
-const polygonsList = ref([
+// ==========武汉大学主校区（文理学部+工学部+信息学部）红色区域：接口不可达时的演示兜底==========
+const DEMO_POLYGONS = [
   {
     points: [
       { latitude: 30.5262, longitude: 114.3560 }, // 信息学部南侧(珞喻路)
@@ -155,10 +137,26 @@ const polygonsList = ref([
     strokeColor: "#ff0000",
     fillColor: "#ff000033"
   }
-])
+]
 
-// ============商家模拟数据，iconPath只写文件名============
-const shopAllList = ref([
+// ==========真实地图数据（GET /api/v1/app/map-overview）==========
+const uniList = ref([])          // 启用未删除的高校区域
+const bizList = ref([])          // 启用未删除的商家点位
+const loadFailed = ref(false)    // 接口不可达时使用演示数据兜底
+
+// 高校区域生成地图多边形（polygonPoints 结构同后端 GeoPoint）
+const polygonsList = computed(() => {
+  if (loadFailed.value) return DEMO_POLYGONS
+  return uniList.value.map(u => ({
+    points: u.polygonPoints,
+    strokeWidth: 2,
+    strokeColor: "#ff0000",
+    fillColor: "#ff000033"
+  }))
+})
+
+// ============商家模拟数据，iconPath只写文件名（接口不可达时的演示兜底）============
+const DEMO_SHOPS = [
   {
     id: 1,
     name: "商务接送车队",
@@ -179,11 +177,7 @@ const shopAllList = ref([
     longitude: 114.305,
     latitude: 30.582,
     address: "武昌楚河汉街附近",
-    roomList:[
-      {roomName:"商务大床房",price:"260元/晚"},
-      {roomName:"商务双床房",price:"280元/晚"},
-      {roomName:"行政套房",price:"420元/晚"}
-    ],
+    intro:"靠近地铁，适合出差商务入住",
     desc:"靠近地铁，适合出差商务入住",
     iconPath: "map-red.png"
   },
@@ -195,11 +189,7 @@ const shopAllList = ref([
     longitude: 114.335,
     latitude: 30.596,
     address: "洪山广场地铁站旁",
-    roomList:[
-      {roomName:"豪华大床房",price:"320元/晚"},
-      {roomName:"豪华双床房",price:"340元/晚"},
-      {roomName:"总裁套房",price:"580元/晚"}
-    ],
+    intro:"高档商务酒店，配套会议室",
     desc:"高档商务酒店，配套会议室",
     iconPath: "map-red.png"
   },
@@ -211,8 +201,7 @@ const shopAllList = ref([
     longitude: 114.331,
     latitude: 30.593,
     address: "洪山广场周边",
-    avgPrice:"80‑120元/人",
-    cuisineList:["湖北菜","家常菜","商务简餐","团建桌餐"],
+    intro:"支持出差团体简餐、小型商务接待",
     desc:"支持出差团体简餐、小型商务接待",
     iconPath: "map-green.png"
   },
@@ -224,12 +213,58 @@ const shopAllList = ref([
     longitude: 114.298,
     latitude: 30.588,
     address: "水果湖商圈",
-    avgPrice:"130‑180元/人",
-    cuisineList:["楚菜","湘菜","粤式茶点","商务宴请"],
+    intro:"适合企业客户正式商务宴请",
     desc:"适合企业客户正式商务宴请",
     iconPath: "map-green.png"
   }
-])
+]
+
+// ============商家归一化：真实数据（businessType 大写）与演示数据统一结构============
+const iconFor = (businessType) => {
+  if (businessType === 'TRAVEL') return 'map-blue.png'
+  if (businessType === 'HOTEL') return 'map-red.png'
+  return 'map-green.png'
+}
+
+const normalizeShop = (raw) => {
+  const businessType = raw.businessType || (raw.type ? String(raw.type).toUpperCase() : '')
+  return {
+    id: raw.id,
+    name: raw.name,
+    businessType,
+    type: businessType.toLowerCase(),
+    typeLabel: (SERVICE_TYPE_MAP[businessType] || {}).label || raw.typeLabel || businessType,
+    longitude: Number(raw.longitude),
+    latitude: Number(raw.latitude),
+    address: raw.address,
+    intro: raw.intro || raw.desc || '',
+    coverImageUrl: resolveImg(raw.coverImageUrl || (raw.imageUrls && raw.imageUrls[0]) || ''),
+    iconPath: iconFor(businessType)
+  }
+}
+
+// ============地图聚合数据加载：高校区域 + 三类商家============
+const loadData = () => {
+  getMapOverview()
+    .then((data) => {
+      loadFailed.value = false
+      uniList.value = (data && data.universities) || []
+      bizList.value = (data && data.businesses) || []
+    })
+    .catch((e) => {
+      if (e.statusCode === 0) {
+        loadFailed.value = true
+      } else {
+        uni.showToast({ title: e.message || '地图数据加载失败', icon: 'none' })
+      }
+    })
+}
+
+onLoad(() => loadData())
+
+const shopAllList = computed(() =>
+  (loadFailed.value ? DEMO_SHOPS : bizList.value).map(normalizeShop)
+)
 
 // ============按分类过滤后的商家============
 const filteredShopList = computed(() => {
@@ -343,6 +378,10 @@ const gotoDetail = () => {
   popupShow.value = false
   uni.navigateTo({ url: `/pages/shop/detail?shopId=${currentShop.value.id}` })
 }
+
+const gotoOrders = () => {
+  uni.navigateTo({ url: '/pages/order/list' })
+}
 </script>
 
 <style scoped>
@@ -355,6 +394,20 @@ const gotoDetail = () => {
 .map-container {
   width: 100%;
   height: 100%;
+}
+
+/* ==========我的预约入口========== */
+.my-orders-btn {
+  position: absolute;
+  right: 20rpx;
+  top: 20rpx;
+  z-index: 10;
+  padding: 14rpx 28rpx;
+  background: #1677ff;
+  color: #fff;
+  font-size: 26rpx;
+  border-radius: 32rpx;
+  box-shadow: 0 6rpx 16rpx rgba(22, 119, 255, 0.35);
 }
 
 /* ==========底部面板========== */
@@ -465,6 +518,13 @@ const gotoDetail = () => {
 .shop-card.selected .card-tag {
   color: #1677ff;
 }
+.card-img {
+  width: 100%;
+  height: 160rpx;
+  border-radius: 10rpx;
+  background: #eceef2;
+  margin-bottom: 10rpx;
+}
 .card-name {
   font-size: 28rpx;
   font-weight: 500;
@@ -477,6 +537,16 @@ const gotoDetail = () => {
   color: #888;
   margin-top: 8rpx;
   white-space: normal;
+}
+.card-intro {
+  font-size: 22rpx;
+  color: #666;
+  margin-top: 10rpx;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
 }
 
 /* ==========弹窗========== */
@@ -505,6 +575,13 @@ const gotoDetail = () => {
   font-size:32rpx;
   font-weight:bold;
   margin-bottom:20rpx;
+}
+.popup-img {
+  width: 100%;
+  height: 320rpx;
+  border-radius: 12rpx;
+  margin-bottom: 20rpx;
+  background: #f0f2f5;
 }
 .row {
   margin-bottom: 16rpx;

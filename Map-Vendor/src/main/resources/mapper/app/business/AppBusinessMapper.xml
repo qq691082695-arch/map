@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mapvendor.module.app.business.query.AppBusinessMapper">
+
+    <select id="selectVisibleBusinessById"
+            resultType="com.mapvendor.module.app.business.query.BusinessDetailRow">
+        SELECT id,
+               name,
+               address,
+               longitude,
+               latitude,
+               business_type,
+               intro,
+               food_contact_name,
+               food_contact_phone,
+               food_recommended_dishes
+        FROM business
+        WHERE id = #{id}
+          AND status = 'ENABLED'
+          AND deleted_at IS NULL
+    </select>
+
+    <select id="selectBusinessImageUrls" resultType="string">
+        SELECT fr.public_url
+        FROM business_file_relation bfr
+        JOIN file_resource fr ON fr.id = bfr.file_resource_id
+        WHERE bfr.business_id = #{businessId}
+          AND fr.status = 'ACTIVE'
+          AND fr.deleted_at IS NULL
+        ORDER BY bfr.sort_no ASC, bfr.file_resource_id ASC
+    </select>
+
+    <select id="selectCars" resultType="com.mapvendor.module.app.business.query.CarRow">
+        SELECT c.id,
+               c.model,
+               c.seat_num,
+               c.description,
+               fr.public_url AS image_url
+        FROM business_travel_car c
+        LEFT JOIN file_resource fr
+               ON fr.id = c.image_resource_id
+              AND fr.status = 'ACTIVE'
+              AND fr.deleted_at IS NULL
+        WHERE c.business_id = #{businessId}
+          AND c.status = 'ENABLED'
+          AND c.deleted_at IS NULL
+        ORDER BY c.id ASC
+    </select>
+
+    <select id="selectRooms" resultType="com.mapvendor.module.app.business.query.RoomRow">
+        SELECT r.id,
+               r.name,
+               r.bed_spec,
+               r.description,
+               fr.public_url AS image_url
+        FROM business_hotel_room r
+        LEFT JOIN file_resource fr
+               ON fr.id = r.image_resource_id
+              AND fr.status = 'ACTIVE'
+              AND fr.deleted_at IS NULL
+        WHERE r.business_id = #{businessId}
+          AND r.status = 'ENABLED'
+          AND r.deleted_at IS NULL
+        ORDER BY r.id ASC
+    </select>
+
+    <select id="selectDishes" resultType="com.mapvendor.module.app.business.query.DishRow">
+        SELECT d.id,
+               d.name,
+               d.description,
+               fr.public_url AS image_url
+        FROM business_food_dish d
+        LEFT JOIN file_resource fr
+               ON fr.id = d.image_resource_id
+              AND fr.status = 'ACTIVE'
+              AND fr.deleted_at IS NULL
+        WHERE d.business_id = #{businessId}
+          AND d.status = 'ENABLED'
+          AND d.deleted_at IS NULL
+        ORDER BY d.sort_no ASC, d.id ASC
+    </select>
+
+</mapper>

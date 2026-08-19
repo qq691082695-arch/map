@@ -12,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import com.mapvendor.module.app.map.query.AppMapQueryMapper;
+import com.mapvendor.module.app.business.query.AppBusinessMapper;
 import com.mapvendor.module.university.repository.UniversityMapper;
 import com.mapvendor.module.business.repository.BusinessMapper;
 import com.mapvendor.module.business.repository.BusinessResourceMapper;
@@ -28,6 +29,9 @@ import com.mapvendor.module.statistics.repository.AdminStatisticsMapper;
 class MapVendorApplicationTest {
     @MockBean
     private AppMapQueryMapper appMapQueryMapper;
+
+    @MockBean
+    private AppBusinessMapper appBusinessMapper;
 
     @MockBean
     private UniversityMapper universityMapper;

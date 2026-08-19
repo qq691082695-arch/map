@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>点击地图拾取坐标</title>
+</head>
+<script charset="utf-8" src="https://map.qq.com/api/gljs?v=1.exp&key=OB4BZ-D4W3U-B7VVO-4PJWW-6TKDJ-WPB77"></script>
+<style type="text/css">
+    html,
+    body {
+        height: 100%;
+        margin: 0px;
+        padding: 0px;
+        overflow: hidden;
+    }
+
+    #layout {
+        display: flex;
+        width: 100%;
+        height: 100%;
+    }
+
+    /* 左侧面板：与地图完全分开，不覆盖在地图上方 */
+    #sidebar {
+        width: 300px;
+        min-width: 300px;
+        height: 100%;
+        box-sizing: border-box;
+        padding: 10px;
+        background: #f7f8fa;
+        border-right: 1px solid #e0e0e0;
+        overflow-y: auto;
+        font-size: 14px;
+    }
+
+    #sidebar h3 {
+        margin: 0 0 8px 0;
+        font-size: 15px;
+    }
+
+    #info {
+        background: #FFF;
+        padding: 10px;
+        border-radius: 3px;
+        margin-bottom: 10px;
+        word-break: break-all;
+    }
+
+    .rec-actions {
+        margin-bottom: 8px;
+    }
+
+    .rec-actions button {
+        font-size: 12px;
+        padding: 3px 8px;
+        margin-right: 6px;
+        cursor: pointer;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        background: #fff;
+    }
+
+    .rec-actions button:hover {
+        background: #e8e8e8;
+    }
+
+    #record-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    #record-list li {
+        padding: 6px 8px;
+        margin-bottom: 4px;
+        border: 1px solid #eee;
+        border-radius: 3px;
+        background: #FFF;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    #record-list li:hover {
+        background: #e8f4ff;
+    }
+
+    #record-list li .coords {
+        flex: 1;
+        min-width: 0;
+    }
+
+    #record-list li .coord-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 2px 0;
+    }
+
+    #record-list li .coord-label {
+        color: #888;
+        font-size: 12px;
+        width: 40px;
+        flex-shrink: 0;
+    }
+
+    #record-list li .coord-val {
+        cursor: pointer;
+        font-family: Consolas, monospace;
+        user-select: all;
+        padding: 1px 4px;
+        border-radius: 2px;
+    }
+
+    #record-list li .coord-val:hover {
+        background: #d4ecff;
+        text-decoration: underline;
+    }
+
+    #record-list li .del {
+        border: none;
+        background: none;
+        color: #999;
+        cursor: pointer;
+        font-size: 14px;
+        padding: 0 4px;
+        align-self: flex-start;
+    }
+
+    #record-list li .del:hover {
+        color: #d00;
+    }
+
+    /* 右侧地图容器 */
+    #container {
+        position: relative;
+        flex: 1;
+        height: 100%;
+    }
+
+    #tip {
+        position: absolute;
+        left: 50%;
+        top: 20px;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.75);
+        color: #fff;
+        padding: 6px 14px;
+        border-radius: 4px;
+        font-size: 13px;
+        display: none;
+        z-index: 10;
+    }
+</style>
+
+<body onload="initMap()">
+    <div id="layout">
+        <div id="sidebar">
+            <div id="info">当前点击坐标为：<span id="position"></span></div>
+            <h3>已保存的点（点击复制）</h3>
+            <div class="rec-actions">
+                <button onclick="copyAll()">复制全部</button>
+                <button onclick="clearRecords()">清空记录</button>
+            </div>
+            <ul id="record-list"></ul>
+        </div>
+        <div id="container"></div>
+    </div>
+    <div id="tip"></div>
+    <script>
+        var records = [];
+
+        function loadRecords() {
+            try {
+                var raw = JSON.parse(localStorage.getItem("finddot_records") || "[]");
+                records = raw.map(function (r) {
+                    if (typeof r === "string") {
+                        var parts = r.split(",");
+                        return { lat: parts[0] || "", lng: parts[1] || "" };
+                    }
+                    return { lat: r.lat || "", lng: r.lng || "" };
+                });
+            } catch (e) {
+                records = [];
+            }
+            renderRecords();
+        }
+
+        function saveRecords() {
+            localStorage.setItem("finddot_records", JSON.stringify(records));
+        }
+
+        function renderRecords() {
+            var list = document.getElementById("record-list");
+            list.innerHTML = "";
+            records.forEach(function (r, i) {
+                var li = document.createElement("li");
+                li.title = "第 " + (i + 1) + " 个点";
+                var coords = document.createElement("div");
+                coords.className = "coords";
+
+                var row1 = document.createElement("div");
+                row1.className = "coord-row";
+                var l1 = document.createElement("span");
+                l1.className = "coord-label";
+                l1.textContent = "纬度";
+                var v1 = document.createElement("span");
+                v1.className = "coord-val";
+                v1.textContent = r.lat;
+                v1.title = "点击复制纬度";
+                v1.onclick = function (e) { e.stopPropagation(); copyText(r.lat); };
+                row1.appendChild(l1);
+                row1.appendChild(v1);
+
+                var row2 = document.createElement("div");
+                row2.className = "coord-row";
+                var l2 = document.createElement("span");
+                l2.className = "coord-label";
+                l2.textContent = "经度";
+                var v2 = document.createElement("span");
+                v2.className = "coord-val";
+                v2.textContent = r.lng;
+                v2.title = "点击复制经度";
+                v2.onclick = function (e) { e.stopPropagation(); copyText(r.lng); };
+                row2.appendChild(l2);
+                row2.appendChild(v2);
+
+                coords.appendChild(row1);
+                coords.appendChild(row2);
+
+                var del = document.createElement("button");
+                del.className = "del";
+                del.textContent = "×";
+                del.title = "删除该条";
+                del.onclick = function (e) {
+                    e.stopPropagation();
+                    records.splice(i, 1);
+                    saveRecords();
+                    renderRecords();
+                };
+
+                li.appendChild(coords);
+                li.appendChild(del);
+                list.appendChild(li);
+            });
+        }
+
+        function showTip(msg) {
+            var tip = document.getElementById("tip");
+            tip.textContent = msg;
+            tip.style.display = "block";
+            setTimeout(function () { tip.style.display = "none"; }, 1500);
+        }
+
+        function copyText(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(function () {
+                    showTip("已复制：" + text);
+                }, function () {
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            var ta = document.createElement("textarea");
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+                document.execCommand("copy");
+                showTip("已复制：" + text);
+            } catch (e) {
+                showTip("复制失败，请手动复制：" + text);
+            }
+            document.body.removeChild(ta);
+        }
+
+        function copyAll() {
+            if (!records.length) {
+                showTip("还没有保存的点");
+                return;
+            }
+            copyText(records.map(function (r) { return r.lat + "," + r.lng; }).join("\n"));
+        }
+
+        function clearRecords() {
+            if (!records.length) return;
+            records = [];
+            saveRecords();
+            renderRecords();
+            showTip("已清空记录");
+        }
+
+        function initMap() {
+            var position = document.getElementById("position");
+            var containerEl = document.getElementById("container");
+
+            var center = new TMap.LatLng(39.984104, 116.307503);//设置中心点坐标
+            //初始化地图
+            var map = new TMap.Map("container", {
+                center: center
+            });
+
+            //直接监听容器 DOM 的 click，只有真正点在地图容器内部才拾取，
+            //左侧面板是独立的 #sidebar，与 #container 完全分开，
+            //点击面板上的坐标/删除按钮根本不会进入地图容器的 click 事件
+            containerEl.addEventListener("click", function (e) {
+                var rect = containerEl.getBoundingClientRect();
+                var x = e.clientX - rect.left;
+                var y = e.clientY - rect.top;
+                var latLng = map.unprojectFromContainer(new TMap.Point(x, y));
+                if (!latLng) return;
+                var lat = latLng.getLat().toFixed(6);
+                var lng = latLng.getLng().toFixed(6);
+                var coord = lat + "," + lng;
+                position.innerHTML = coord;
+                records.push({ lat: lat, lng: lng });
+                saveRecords();
+                renderRecords();
+                showTip("已保存：" + coord);
+            });
+
+            loadRecords();
+        }
+    </script>
+</body>
+
+</html>

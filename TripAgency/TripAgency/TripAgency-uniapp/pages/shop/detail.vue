@@ -1,108 +1,161 @@
 <template>
   <view class="detail-wrap">
     <view v-if="shop" class="detail-card">
+      <!-- 商家相册轮播 -->
+      <swiper v-if="shop.imageUrls && shop.imageUrls.length" class="banner" circular indicator-dots indicator-active-color="#1677ff">
+        <swiper-item v-for="(img, i) in shop.imageUrls" :key="i">
+          <image class="banner-img" :src="img" mode="aspectFill" />
+        </swiper-item>
+      </swiper>
+
       <view class="head">
         <text class="name">{{ shop.name }}</text>
-        <text class="tag">{{ shop.typeLabel }}</text>
+        <text class="tag">{{ typeLabel }}</text>
       </view>
-      <view class="row"><text class="label">服务类别：</text><text>{{ shop.typeLabel }}</text></view>
-      <view class="row"><text class="label">地址：</text><text>{{ shop.address }}</text></view>
 
-      <!-- 出行 -->
-      <view v-if="shop.type === 'travel'" class="block">
-        <view class="label">服务商介绍：</view>
+      <view class="row"><text class="label">地址：</text><text class="addr">{{ shop.address }}</text></view>
+
+      <!-- 商家简介（三类通用） -->
+      <view v-if="shop.intro" class="block">
+        <view class="label">商家介绍</view>
         <view class="text">{{ shop.intro }}</view>
       </view>
 
-      <!-- 酒店房型 -->
-      <view v-if="shop.type === 'hotel'" class="block">
-        <view class="label">房型列表：</view>
-        <view class="item-card" v-for="(room,idx) in shop.roomList" :key="idx">
-          <text>{{ room.roomName }}</text>
-          <text class="price">{{ room.price }}</text>
+      <!-- 出行：车辆列表 -->
+      <view v-if="shop.businessType === 'TRAVEL'" class="block">
+        <view class="label sub-label">可选车辆（{{ shop.detail.cars.length }}）</view>
+        <view class="item-card" v-for="car in shop.detail.cars" :key="car.id">
+          <image v-if="car.imageUrl" class="item-img" :src="car.imageUrl" mode="aspectFill" />
+          <view class="item-main">
+            <text class="item-name">{{ car.model }}</text>
+            <text class="item-sub">{{ car.seatNum }}座{{ car.description ? ' · ' + car.description : '' }}</text>
+          </view>
         </view>
       </view>
 
-      <!-- 餐饮 -->
-      <view v-if="shop.type === 'food'" class="block">
-        <view class="row">
-          <text class="label">人均消费：</text>
-          <text class="price">{{ shop.avgPrice }}</text>
-        </view>
-        <view class="label">菜系分类：</view>
-        <view class="tag-wrap">
-          <text class="cuisine-tag" v-for="tag in shop.cuisineList" :key="tag">{{tag}}</text>
+      <!-- 住宿：房型列表 -->
+      <view v-if="shop.businessType === 'HOTEL'" class="block">
+        <view class="label sub-label">可选房型（{{ shop.detail.rooms.length }}）</view>
+        <view class="item-card" v-for="room in shop.detail.rooms" :key="room.id">
+          <image v-if="room.imageUrl" class="item-img" :src="room.imageUrl" mode="aspectFill" />
+          <view class="item-main">
+            <text class="item-name">{{ room.name }}</text>
+            <text class="item-sub">{{ room.bedSpec }}{{ room.description ? ' · ' + room.description : '' }}</text>
+          </view>
         </view>
       </view>
 
-      <view class="row">
-        <text class="label">备注简介：</text>
-        <text>{{ shop.desc }}</text>
+      <!-- 餐饮：联系方式 + 推荐菜 + 菜品 -->
+      <view v-if="shop.businessType === 'FOOD'" class="block">
+        <view v-if="shop.detail.contactName || shop.detail.contactPhone" class="contact-box">
+          <view class="contact-info">
+            <text class="contact-label">{{ shop.detail.contactName || '商家' }}</text>
+            <text class="contact-phone">{{ shop.detail.contactPhone }}</text>
+          </view>
+          <button class="call-btn" @click="callMerchant">拨打电话</button>
+        </view>
+        <view v-if="shop.detail.recommendedDishes" class="row">
+          <text class="label">推荐菜：</text>
+          <text>{{ shop.detail.recommendedDishes }}</text>
+        </view>
+        <view v-if="shop.detail.dishes && shop.detail.dishes.length" class="block">
+          <view class="label sub-label">精选菜品（{{ shop.detail.dishes.length }}）</view>
+          <view class="item-card" v-for="dish in shop.detail.dishes" :key="dish.id">
+            <image v-if="dish.imageUrl" class="item-img" :src="dish.imageUrl" mode="aspectFill" />
+            <view class="item-main">
+              <text class="item-name">{{ dish.name }}</text>
+              <text v-if="dish.description" class="item-sub">{{ dish.description }}</text>
+            </view>
+          </view>
+        </view>
       </view>
 
-      <button class="primary-btn" @click="submitOrder">立即预约下单</button>
+      <!-- 去这里：调起地图导航 -->
+      <view class="loc-row">
+        <button class="loc-btn" @click="openLocation">📍 去这里</button>
+      </view>
+
+      <button class="primary-btn" @click="gotoCreate">立即预约下单</button>
     </view>
     <view v-else class="empty">商家不存在或已下架</view>
   </view>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { getBusinessDetail } from '../../api/app'
+import { mockBusinesses } from '../../common/mock'
+import { SERVICE_TYPE_MAP } from '../../common/config'
+import { resolveImg } from '../../common/util'
 
-const shopId = ref(null)
 const shop = ref(null)
 
-const shopAllList = [
-  {
-    id: 1, name: "商务接送车队", type: "travel", typeLabel: "🚗出行",
-    address: "武汉市江汉区商务区",
-    intro: "本公司专注武汉全域商务接送，提供7‑55座车辆，支持出差接机、会务接送，专职司机。",
-    desc: "可提供企业长期合作包车服务"
-  },
-  {
-    id: 2, name: "楚河汉街商务快捷酒店", type: "hotel", typeLabel: "🏨住宿",
-    address: "武昌楚河汉街附近",
-    roomList: [
-      { roomName: "商务大床房", price: "260元/晚" },
-      { roomName: "商务双床房", price: "280元/晚" },
-      { roomName: "行政套房", price: "420元/晚" }
-    ],
-    desc: "靠近地铁，适合出差商务入住"
-  },
-  {
-    id: 3, name: "洪山广场铂悦酒店", type: "hotel", typeLabel: "🏨住宿",
-    address: "洪山广场地铁站旁",
-    roomList: [
-      { roomName: "豪华大床房", price: "320元/晚" },
-      { roomName: "豪华双床房", price: "340元/晚" },
-      { roomName: "总裁套房", price: "580元/晚" }
-    ],
-    desc: "高档商务酒店，配套会议室"
-  },
-  {
-    id: 4, name: "洪山商务简餐酒楼", type: "food", typeLabel: "🍜饮食",
-    address: "洪山广场周边",
-    avgPrice: "80‑120元/人",
-    cuisineList: ["湖北菜", "家常菜", "商务简餐", "团建桌餐"],
-    desc: "支持出差团体简餐、小型商务接待"
-  },
-  {
-    id: 5, name: "楚宴融合菜馆", type: "food", typeLabel: "🍜饮食",
-    address: "水果湖商圈",
-    avgPrice: "130‑180元/人",
-    cuisineList: ["楚菜", "湘菜", "粤式茶点", "商务宴请"],
-    desc: "适合企业客户正式商务宴请"
-  }
-]
-
-onLoad((options) => {
-  shopId.value = Number(options.shopId)
-  shop.value = shopAllList.find(s => s.id === shopId.value) || null
+const typeLabel = computed(() => {
+  const t = shop.value ? shop.value.businessType : ''
+  return SERVICE_TYPE_MAP[t] ? SERVICE_TYPE_MAP[t].label : ''
 })
 
-const submitOrder = () => {
-  uni.showToast({ title: '预约成功，商家将尽快与您联系', icon: 'none' })
+const normalizeImages = (data) => {
+  if (!data) return null
+  const common = data.common
+  if (!common) return null
+  return Object.assign({}, common, {
+    imageUrls: (common.imageUrls || []).map(resolveImg),
+    detail: Object.assign({}, data.detail, {
+      cars: ((data.detail && data.detail.cars) || []).map(c => Object.assign({}, c, { imageUrl: resolveImg(c.imageUrl) })),
+      rooms: ((data.detail && data.detail.rooms) || []).map(r => Object.assign({}, r, { imageUrl: resolveImg(r.imageUrl) })),
+      dishes: ((data.detail && data.detail.dishes) || []).map(d => Object.assign({}, d, { imageUrl: resolveImg(d.imageUrl) }))
+    })
+  })
+}
+
+const fallbackToMock = (id) => {
+  const mock = mockBusinesses.find(b => b.id === id)
+  shop.value = mock ? normalizeImages(mock) : null
+}
+
+onLoad((options) => {
+  const id = Number(options.shopId)
+  getBusinessDetail(id)
+    .then((data) => {
+      shop.value = normalizeImages(data)
+    })
+    .catch((e) => {
+      // 网络不可达或后端窗口 06B 接口未实现（未知路由 404）时使用演示数据
+      if (e.statusCode === 0 || (e.statusCode === 404 && e.code === 'ERROR')) {
+        fallbackToMock(id)
+        return
+      }
+      uni.showToast({ title: e.message || '商家加载失败', icon: 'none' })
+    })
+})
+
+const callMerchant = () => {
+  const phone = shop.value && shop.value.detail && shop.value.detail.contactPhone
+  if (!phone) {
+    uni.showToast({ title: '暂无联系电话', icon: 'none' })
+    return
+  }
+  uni.makePhoneCall({ phoneNumber: String(phone) })
+}
+
+const openLocation = () => {
+  const s = shop.value
+  if (!s || !s.longitude || !s.latitude) {
+    uni.showToast({ title: '暂无可定位信息', icon: 'none' })
+    return
+  }
+  uni.openLocation({
+    longitude: Number(s.longitude),
+    latitude: Number(s.latitude),
+    name: s.name,
+    address: s.address || ''
+  })
+}
+
+const gotoCreate = () => {
+  uni.navigateTo({ url: `/pages/order/create?businessId=${shop.value.id}` })
 }
 </script>
 
@@ -116,6 +169,17 @@ const submitOrder = () => {
   background: #fff;
   border-radius: 20rpx;
   padding: 30rpx;
+}
+.banner {
+  width: 100%;
+  height: 360rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+  margin-bottom: 24rpx;
+}
+.banner-img {
+  width: 100%;
+  height: 100%;
 }
 .head {
   display: flex;
@@ -137,9 +201,17 @@ const submitOrder = () => {
 .row {
   margin-bottom: 16rpx;
   font-size: 28rpx;
+  line-height: 1.6;
+}
+.addr {
+  word-break: break-all;
 }
 .label {
   color: #666;
+}
+.sub-label {
+  display: block;
+  margin-bottom: 12rpx;
 }
 .block {
   margin: 24rpx 0;
@@ -151,31 +223,81 @@ const submitOrder = () => {
 }
 .item-card {
   display: flex;
-  justify-content: space-between;
-  padding: 14rpx 16rpx;
+  align-items: center;
+  padding: 16rpx;
   background: #f7f8fa;
-  border-radius: 10rpx;
-  margin-top: 10rpx;
+  border-radius: 12rpx;
+  margin-top: 12rpx;
   font-size: 26rpx;
 }
-.price {
-  color: #f56c6c;
+.item-img {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 10rpx;
+  background: #eceef2;
+  flex-shrink: 0;
+  margin-right: 20rpx;
 }
-.tag-wrap {
+.item-main {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  gap: 12rpx;
-  flex-wrap: wrap;
-  margin-top: 10rpx;
+  flex-direction: column;
 }
-.cuisine-tag {
-  padding: 6rpx 14rpx;
-  background: #e8f3ff;
-  color: #1677ff;
-  border-radius: 8rpx;
+.item-name {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #333;
+}
+.item-sub {
+  margin-top: 6rpx;
   font-size: 24rpx;
+  color: #888;
+}
+.contact-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx;
+  background: #fff7e6;
+  border: 2rpx solid #ffd591;
+  border-radius: 12rpx;
+  margin-bottom: 16rpx;
+}
+.contact-info {
+  display: flex;
+  flex-direction: column;
+}
+.contact-label {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #333;
+}
+.contact-phone {
+  margin-top: 6rpx;
+  font-size: 26rpx;
+  color: #666;
+}
+.call-btn {
+  flex-shrink: 0;
+  width: 200rpx;
+  background: #ff9a2e;
+  color: #fff;
+  font-size: 26rpx;
+  margin: 0;
+}
+.loc-row {
+  margin-top: 24rpx;
+}
+.loc-btn {
+  width: 100%;
+  background: #fff;
+  color: #1677ff;
+  border: 2rpx solid #1677ff;
+  font-size: 28rpx;
 }
 .primary-btn {
-  margin-top: 40rpx;
+  margin-top: 24rpx;
   background: #1677ff;
   color: #fff;
 }

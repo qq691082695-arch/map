@@ -11,6 +11,19 @@
 			"style": {
 				"navigationBarTitleText": "商家详情"
 			}
+		},
+		{
+			"path": "pages/order/create",
+			"style": {
+				"navigationBarTitleText": "预约下单"
+			}
+		},
+		{
+			"path": "pages/order/list",
+			"style": {
+				"navigationBarTitleText": "我的预约",
+				"enablePullDownRefresh": true
+			}
 		}
 	],
 	"globalStyle": {
