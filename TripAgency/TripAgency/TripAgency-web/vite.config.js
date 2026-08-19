@@ -11,10 +11,17 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    host: true,
+    allowedHosts: true,
     open: true,
     proxy: {
       '/api': 'http://localhost:8080',
       '/files': 'http://localhost:8080'
     }
+  },
+  preview: {
+    port: 4173,
+    host: true,
+    allowedHosts: true
   }
 })

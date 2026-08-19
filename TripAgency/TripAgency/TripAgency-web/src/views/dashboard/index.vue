@@ -1,6 +1,6 @@
 <template>
   <div class="page-container">
-    <!-- 统计卡片 -->
+    <!-- 订单状态统计卡片 -->
     <el-row :gutter="16">
       <el-col :xs="12" :sm="12" :md="6" v-for="card in statCards" :key="card.label">
         <el-card shadow="hover" class="stat-card">
@@ -18,16 +18,16 @@
     </el-row>
 
     <el-row :gutter="16" class="row-gap">
-      <!-- 分类占比 -->
+      <!-- 服务商分类统计 -->
       <el-col :xs="24" :md="10">
-        <el-card shadow="never" header="商家分类统计">
-          <el-table :data="data.typeStats" size="default">
+        <el-card shadow="never" header="服务商分类统计">
+          <el-table :data="typeStats" size="default">
             <el-table-column prop="typeLabel" label="分类" width="120">
               <template #default="{ row }">
-                <el-tag :type="tagType(row.type)" effect="light">{{ row.typeLabel }}</el-tag>
+                <el-tag :type="typeTag(row.type)" effect="light">{{ row.typeLabel }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="count" label="商家数量">
+            <el-table-column prop="count" label="服务商数量">
               <template #default="{ row }">{{ row.count }} 家</template>
             </el-table-column>
             <el-table-column label="占比">
@@ -42,18 +42,19 @@
       <!-- 最近订单 -->
       <el-col :xs="24" :md="14">
         <el-card shadow="never" header="最近订单">
-          <el-table :data="data.recentOrders" size="default">
-            <el-table-column prop="id" label="订单号" width="150" />
-            <el-table-column prop="shopName" label="商家" show-overflow-tooltip />
-            <el-table-column prop="openid" label="openid" min-width="150" show-overflow-tooltip />
-            <el-table-column prop="amount" label="金额" width="90">
+          <el-table :data="recentOrders" size="default">
+            <el-table-column prop="orderNo" label="订单号" width="160" show-overflow-tooltip />
+            <el-table-column prop="businessNameSnapshot" label="服务商" min-width="140" show-overflow-tooltip />
+            <el-table-column label="类型" width="90">
               <template #default="{ row }">
-                <span class="amount">¥{{ row.amount }}</span>
+                <el-tag size="small" :type="typeTag(row.serviceType)">{{ typeLabel(row.serviceType) }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="status" label="状态" width="90">
+            <el-table-column prop="contactName" label="联系人" min-width="100" show-overflow-tooltip />
+            <el-table-column prop="serviceDate" label="服务日期" width="115" />
+            <el-table-column label="状态" width="90">
               <template #default="{ row }">
-                <el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag>
+                <el-tag :type="statusTag(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
               </template>
             </el-table-column>
           </el-table>
@@ -68,30 +69,56 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import { api } from '@/api'
 
-const data = ref({ typeStats: [], recentOrders: [] })
+const total = ref(null)
+const businesses = ref([])
+const recentOrders = ref([])
+
+const statuses = [{ value: 'PENDING', label: '待确认' }, { value: 'CONFIRMED', label: '已确认' }, { value: 'CANCELLED', label: '已取消' }]
+const statusLabel = value => statuses.find(item => item.value === value)?.label || value
+const statusTag = value => ({ CONFIRMED: 'success', PENDING: 'warning', CANCELLED: 'info' }[value] || 'info')
+const typeLabel = value => ({ TRAVEL: '出行', HOTEL: '住宿', FOOD: '餐饮' }[value] || value)
+const typeTag = value => ({ TRAVEL: 'primary', HOTEL: 'success', FOOD: 'warning' }[value] || 'info')
 
 const statCards = computed(() => [
-  { label: '商家总数', value: data.value.shopTotal ?? '--', icon: 'Shop', bg: '#e6f4ff', color: '#1677ff' },
-  { label: '在线商家', value: data.value.shopOnline ?? '--', icon: 'CircleCheck', bg: '#f6ffed', color: '#52c41a' },
-  { label: '全部订单', value: data.value.orderTotal ?? '--', icon: 'Tickets', bg: '#fff7e6', color: '#fa8c16' },
-  { label: '待确认', value: data.value.orderPending ?? '--', icon: 'Bell', bg: '#fff1f0', color: '#f5222d' },
-  { label: '累计成交额', value: '¥' + (data.value.orderAmount ?? 0), icon: 'Wallet', bg: '#e6f4ff', color: '#13c2c2' }
+  { label: '全部订单', value: total.value?.totalCount ?? '--', icon: 'Tickets', bg: '#e6f4ff', color: '#1677ff' },
+  { label: '待确认', value: total.value?.pendingCount ?? '--', icon: 'Bell', bg: '#fff7e6', color: '#fa8c16' },
+  { label: '已确认', value: total.value?.confirmedCount ?? '--', icon: 'CircleCheck', bg: '#f6ffed', color: '#52c41a' },
+  { label: '已取消', value: total.value?.cancelledCount ?? '--', icon: 'CircleClose', bg: '#fff1f0', color: '#f5222d' }
 ])
 
+const typeStats = computed(() => {
+  const counts = { TRAVEL: 0, HOTEL: 0, FOOD: 0 }
+  businesses.value.forEach(item => {
+    if (item.status === 'ENABLED' && counts[item.businessType] != null) counts[item.businessType] += 1
+  })
+  return [
+    { type: 'TRAVEL', typeLabel: '出行', count: counts.TRAVEL },
+    { type: 'HOTEL', typeLabel: '住宿', count: counts.HOTEL },
+    { type: 'FOOD', typeLabel: '餐饮', count: counts.FOOD }
+  ]
+})
+
 const percent = (count) => {
-  const total = data.value.typeStats.reduce((s, t) => s + t.count, 0) || 1
-  return Math.round((count / total) * 100)
+  const totalCount = typeStats.value.reduce((sum, item) => sum + item.count, 0) || 1
+  return Math.round((count / totalCount) * 100)
 }
 
-const tagType = (t) => ({ travel: 'primary', hotel: 'success', food: 'warning' }[t] || 'info')
-const statusTag = (s) =>
-  ({ 已确认: 'success', 待确认: 'warning', 已取消: 'info' }[s] || 'info')
-
 onMounted(async () => {
-  const res = await api.getDashboard()
-  if (res.ok) data.value = res.data
+  try {
+    const [overview, businessRes, orderRes] = await Promise.all([
+      api.getStatisticsOverview(),
+      api.getBusinesses({ page: 1, size: 100 }),
+      api.getOrders({ page: 1, size: 5 })
+    ])
+    total.value = overview.total
+    businesses.value = businessRes.items
+    recentOrders.value = orderRes.items
+  } catch (error) {
+    ElMessage.error(error.message)
+  }
 })
 </script>
 
@@ -123,10 +150,6 @@ onMounted(async () => {
 }
 .row-gap {
   margin-top: 8px;
-}
-.amount {
-  color: #f5222d;
-  font-weight: 600;
 }
 .more-btn {
   margin-top: 12px;

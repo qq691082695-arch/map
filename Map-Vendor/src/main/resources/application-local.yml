@@ -3,9 +3,9 @@ spring:
     activate:
       on-profile: local
   datasource:
-    password: ninnikuuu.
+    password: 123456
   flyway:
-    password: ninnikuuu.
+    password: 123456
 
 logging:
   level:
