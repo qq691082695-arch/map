@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mapvendor.module.statistics.repository.AdminStatisticsMapper">
+  <sql id="filter">1=1
+    <if test="serviceDateFrom != null">AND service_date &gt;= #{serviceDateFrom}</if>
+    <if test="serviceDateTo != null">AND service_date &lt;= #{serviceDateTo}</if>
+    <if test="businessType != null">AND business_type = #{businessType}</if>
+    <if test="businessId != null">AND business_id = #{businessId}</if>
+  </sql>
+  <sql id="counts">
+    SUM(CASE WHEN status='PENDING' THEN 1 ELSE 0 END) pending_count,
+    SUM(CASE WHEN status='CONFIRMED' THEN 1 ELSE 0 END) confirmed_count,
+    SUM(CASE WHEN status='CANCELLED' THEN 1 ELSE 0 END) cancelled_count,
+    COUNT(*) total_count
+  </sql>
+  <select id="selectTotal" resultType="com.mapvendor.module.statistics.repository.StatisticsRow">
+    SELECT <include refid="counts"/> FROM reserve_order WHERE <include refid="filter"/>
+  </select>
+  <select id="selectByBusiness" resultType="com.mapvendor.module.statistics.repository.StatisticsRow">
+    SELECT business_id,business_name_snapshot,business_type,<include refid="counts"/>
+    FROM reserve_order WHERE <include refid="filter"/>
+    GROUP BY business_id,business_name_snapshot,business_type
+    ORDER BY total_count DESC,business_id ASC,business_name_snapshot ASC
+  </select>
+</mapper>

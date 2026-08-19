@@ -16,6 +16,8 @@ import com.mapvendor.module.university.repository.UniversityMapper;
 import com.mapvendor.module.business.repository.BusinessMapper;
 import com.mapvendor.module.business.repository.BusinessResourceMapper;
 import com.mapvendor.module.file.repository.FileResourceMapper;
+import com.mapvendor.module.order.repository.AdminOrderMapper;
+import com.mapvendor.module.statistics.repository.AdminStatisticsMapper;
 
 @SpringBootTest(properties = {
         "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,"
@@ -38,6 +40,12 @@ class MapVendorApplicationTest {
 
     @MockBean
     private FileResourceMapper fileResourceMapper;
+
+    @MockBean
+    private AdminOrderMapper adminOrderMapper;
+
+    @MockBean
+    private AdminStatisticsMapper adminStatisticsMapper;
 
     @Autowired
     private MockMvc mockMvc;

@@ -45,5 +45,13 @@ export const api = {
   async updateShopItem(businessId, type, payload) { return { ok: true, data: await request(`/api/v1/admin/businesses/${businessId}/${resourcePath(type)}/${payload.id}`, { method: 'PUT', body: JSON.stringify(payload) }), message: '保存成功' } },
   async updateShopItemStatus(businessId, type, id, status) { return { ok: true, data: await request(`/api/v1/admin/businesses/${businessId}/${resourcePath(type)}/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }), message: status === 'ENABLED' ? '已启用' : '已禁用' } },
   async deleteShopItem(businessId, type, id) { await request(`/api/v1/admin/businesses/${businessId}/${resourcePath(type)}/${id}`, { method: 'DELETE' }); return { ok: true, message: '删除成功' } },
-  async uploadImage(file) { const body = new FormData(); body.append('file', file); return request('/api/v1/admin/files/images', { method: 'POST', body }) }
+  async uploadImage(file) { const body = new FormData(); body.append('file', file); return request('/api/v1/admin/files/images', { method: 'POST', body }) },
+  async getOrders(params = {}) {
+    const { serviceDateRange, ...rest } = params
+    const [serviceDateFrom, serviceDateTo] = serviceDateRange || []
+    return pageResult(await request(`/api/v1/admin/orders${queryString(pageParams({ ...rest, serviceDateFrom, serviceDateTo }))}`))
+  },
+  async getOrder(id) { return { ok: true, data: await request(`/api/v1/admin/orders/${id}`) } },
+  async confirmOrder(id) { return { ok: true, data: await request(`/api/v1/admin/orders/${id}/confirm`, { method: 'POST' }), message: '订单已确认' } },
+  async cancelOrder(id, reason) { return { ok: true, data: await request(`/api/v1/admin/orders/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) }), message: '订单已取消' } }
 }

@@ -29,6 +29,7 @@
         <mysql-connector.version>8.4.0</mysql-connector.version>
         <archunit.version>1.1.0</archunit.version>
         <logstash-logback-encoder.version>7.4</logstash-logback-encoder.version>
+        <poi.version>5.5.1</poi.version>
     </properties>
 
     <dependencies>
@@ -74,6 +75,11 @@
             <groupId>net.logstash.logback</groupId>
             <artifactId>logstash-logback-encoder</artifactId>
             <version>${logstash-logback-encoder.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>${poi.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

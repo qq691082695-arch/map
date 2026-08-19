@@ -162,6 +162,83 @@ paths:
     delete: {summary: 逻辑删除菜品, responses: {'200': {description: 成功}}}
   /api/v1/admin/businesses/{businessId}/dishes/{id}/status:
     patch: {summary: 启停菜品, responses: {'200': {description: 成功}}}
+  /api/v1/admin/orders:
+    get:
+      summary: 分页筛选全部订单（按创建时间和 ID 倒序稳定排序）
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: pageSize, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: serviceDateFrom, in: query, schema: {type: string, format: date}}
+        - {name: serviceDateTo, in: query, schema: {type: string, format: date}}
+        - {name: status, in: query, schema: {$ref: '#/components/schemas/OrderStatus'}}
+        - {name: type, in: query, schema: {$ref: '#/components/schemas/BusinessType'}}
+        - {name: businessId, in: query, schema: {type: integer, format: int64, minimum: 1}}
+      responses:
+        '200': {description: 成功, content: {application/json: {schema: {$ref: '#/components/schemas/AdminOrderPageResponse'}}}}
+        '400': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/admin/orders/{id}:
+    get:
+      summary: 查询订单详情（展示订单历史快照）
+      parameters: [{name: id, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}]
+      responses:
+        '200': {description: 成功, content: {application/json: {schema: {$ref: '#/components/schemas/AdminOrderDetailResponse'}}}}
+        '404': {description: 订单不存在, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+  /api/v1/admin/orders/export:
+    get:
+      summary: 按订单列表筛选条件流式导出 Excel
+      description: serviceDateFrom/serviceDateTo 均必填且包含边界；默认最大 366 天、10000 行。导出包含完整手机号并写审计日志，不包含 openid。
+      parameters:
+        - {name: serviceDateFrom, in: query, required: true, schema: {type: string, format: date}}
+        - {name: serviceDateTo, in: query, required: true, schema: {type: string, format: date}}
+        - {name: status, in: query, schema: {$ref: '#/components/schemas/OrderStatus'}}
+        - {name: type, in: query, schema: {$ref: '#/components/schemas/BusinessType'}}
+        - {name: businessId, in: query, schema: {type: integer, format: int64, minimum: 1}}
+        - {$ref: '#/components/parameters/RequestId'}
+      responses:
+        '200':
+          description: XLSX 文件
+          headers:
+            Content-Disposition: {schema: {type: string}}
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: {type: string, format: binary}
+        '400': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/admin/orders/{id}/confirm:
+    post:
+      summary: 管理员确认待确认订单
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
+        - {$ref: '#/components/parameters/RequestId'}
+      responses:
+        '200': {description: 成功, content: {application/json: {schema: {$ref: '#/components/schemas/AdminOrderDetailResponse'}}}}
+        '404': {description: 订单不存在, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+        '409': {$ref: '#/components/responses/OrderStatusConflict'}
+  /api/v1/admin/orders/{id}/cancel:
+    post:
+      summary: 管理员取消待确认订单
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
+        - {$ref: '#/components/parameters/RequestId'}
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/AdminOrderCancelRequest'}}}
+      responses:
+        '200': {description: 成功, content: {application/json: {schema: {$ref: '#/components/schemas/AdminOrderDetailResponse'}}}}
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '404': {description: 订单不存在, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+        '409': {$ref: '#/components/responses/OrderStatusConflict'}
+  /api/v1/admin/statistics/overview:
+    get:
+      summary: 按服务日期、服务商和类型统计三种订单状态
+      description: 日期为 Asia/Shanghai 业务自然日且起止边界均包含；服务商名称使用订单历史快照。
+      parameters:
+        - {name: serviceDateFrom, in: query, schema: {type: string, format: date}}
+        - {name: serviceDateTo, in: query, schema: {type: string, format: date}}
+        - {name: type, in: query, schema: {$ref: '#/components/schemas/BusinessType'}}
+        - {name: businessId, in: query, schema: {type: integer, format: int64, minimum: 1}}
+      responses:
+        '200': {description: 成功, content: {application/json: {schema: {$ref: '#/components/schemas/AdminStatisticsOverviewResponse'}}}}
+        '400': {$ref: '#/components/responses/ValidationError'}
 components:
   parameters:
     UniversityId: {name: id, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
@@ -172,6 +249,43 @@ components:
     BusinessType: {type: string, enum: [TRAVEL, HOTEL, FOOD]}
     BusinessStatus: {type: string, enum: [ENABLED, DISABLED]}
     ResourceStatus: {type: string, enum: [ENABLED, DISABLED]}
+    OrderStatus: {type: string, enum: [PENDING, CONFIRMED, CANCELLED]}
+    StatusCounts:
+      type: object
+      required: [pendingCount, confirmedCount, cancelledCount, totalCount]
+      properties:
+        pendingCount: {type: integer, format: int64}
+        confirmedCount: {type: integer, format: int64}
+        cancelledCount: {type: integer, format: int64}
+        totalCount: {type: integer, format: int64}
+    BusinessStatistics:
+      allOf:
+        - {$ref: '#/components/schemas/StatusCounts'}
+        - type: object
+          required: [businessId, businessNameSnapshot, businessType]
+          properties:
+            businessId: {type: integer, format: int64}
+            businessNameSnapshot: {type: string}
+            businessType: {$ref: '#/components/schemas/BusinessType'}
+    AdminStatisticsOverviewResponse:
+      type: object
+      required: [code, message, data, requestId]
+      properties:
+        code: {type: string, example: OK}
+        message: {type: string, example: success}
+        requestId: {type: string, nullable: true}
+        data:
+          type: object
+          required: [total, businesses]
+          properties:
+            serviceDateFrom: {type: string, format: date, nullable: true}
+            serviceDateTo: {type: string, format: date, nullable: true}
+            total: {$ref: '#/components/schemas/StatusCounts'}
+            businesses: {type: array, items: {$ref: '#/components/schemas/BusinessStatistics'}}
+    AdminOrderCancelRequest:
+      type: object
+      required: [reason]
+      properties: {reason: {type: string, minLength: 1, maxLength: 500}}
     CarSaveRequest:
       type: object
       required: [model, seatNum]
@@ -299,6 +413,59 @@ components:
                 total: {type: integer, format: int64}
                 page: {type: integer}
                 pageSize: {type: integer}
+    AdminOrderSummary:
+      type: object
+      required: [id, orderNo, openidMasked, businessId, businessNameSnapshot, serviceType, contactName, contactPhoneMasked, peopleNum, serviceDate, status, createdAt]
+      properties:
+        id: {type: integer, format: int64}
+        orderNo: {type: string}
+        openidMasked: {type: string, description: 脱敏 openid，列表和详情均不返回完整值}
+        businessId: {type: integer, format: int64}
+        businessNameSnapshot: {type: string, description: 下单时服务商名称快照}
+        serviceType: {$ref: '#/components/schemas/BusinessType'}
+        contactName: {type: string}
+        contactPhoneMasked: {type: string, example: 138****5678}
+        peopleNum: {type: integer, minimum: 1}
+        serviceDate: {type: string, format: date}
+        status: {$ref: '#/components/schemas/OrderStatus'}
+        createdAt: {type: string, format: date-time}
+    AdminOrderDetail:
+      allOf:
+        - {$ref: '#/components/schemas/AdminOrderSummary'}
+        - type: object
+          properties:
+            contactPhone: {type: string, description: 仅管理员详情接口返回完整手机号；不得写入日志}
+            businessType: {$ref: '#/components/schemas/BusinessType'}
+            carId: {type: integer, format: int64, nullable: true}
+            carSpecSnapshot: {type: string, nullable: true}
+            carQuantity: {type: integer, nullable: true}
+            serviceMode: {type: string, enum: [DAY_CHARTER, ROUND_TRIP], nullable: true}
+            roomId: {type: integer, format: int64, nullable: true}
+            roomSpecSnapshot: {type: string, nullable: true}
+            roomQuantity: {type: integer, nullable: true}
+            mealPeriod: {type: string, enum: [BREAKFAST, LUNCH, DINNER], nullable: true}
+            optionSnapshotJson: {type: string, nullable: true, description: 只读历史展示补充快照，不承载筛选字段}
+            confirmedAt: {type: string, format: date-time, nullable: true}
+            cancelledAt: {type: string, format: date-time, nullable: true}
+            cancelSource: {type: string, enum: [USER, ADMIN], nullable: true}
+            cancelReason: {type: string, nullable: true}
+            updatedAt: {type: string, format: date-time}
+    AdminOrderPageResponse:
+      allOf:
+        - {$ref: '#/components/schemas/ErrorResponse'}
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items: {type: array, items: {$ref: '#/components/schemas/AdminOrderSummary'}}
+                total: {type: integer, format: int64}
+                page: {type: integer}
+                pageSize: {type: integer}
+    AdminOrderDetailResponse:
+      allOf:
+        - {$ref: '#/components/schemas/ErrorResponse'}
+        - {type: object, properties: {data: {$ref: '#/components/schemas/AdminOrderDetail'}}}
   responses:
     UniversityResponse:
       description: 成功
@@ -314,4 +481,7 @@ components:
       content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}
     BusinessNotFound:
       description: 服务商不存在或已逻辑删除
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}
+    OrderStatusConflict:
+      description: 订单已被其他请求处理或不是待确认状态
       content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}

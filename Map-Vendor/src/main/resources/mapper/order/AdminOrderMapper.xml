@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mapvendor.module.order.repository.AdminOrderMapper">
+  <sql id="columns">id,order_no,openid,business_id,business_name_snapshot,business_type,service_type,
+    contact_name,contact_phone,people_num,service_date,status,car_id,car_spec_snapshot,car_quantity,service_mode,
+    room_id,room_spec_snapshot,room_quantity,meal_period,option_snapshot_json,confirmed_at,cancelled_at,
+    cancel_source,cancel_reason,created_at,updated_at</sql>
+  <sql id="filter">1=1
+    <if test="serviceDateFrom != null">AND service_date &gt;= #{serviceDateFrom}</if>
+    <if test="serviceDateTo != null">AND service_date &lt;= #{serviceDateTo}</if>
+    <if test="status != null">AND status = #{status}</if>
+    <if test="businessType != null">AND business_type = #{businessType}</if>
+    <if test="businessId != null">AND business_id = #{businessId}</if>
+  </sql>
+  <select id="count" resultType="long">SELECT COUNT(*) FROM reserve_order WHERE <include refid="filter"/></select>
+  <select id="selectPage" resultType="com.mapvendor.module.order.repository.AdminOrderRow">
+    SELECT <include refid="columns"/> FROM reserve_order WHERE <include refid="filter"/>
+    ORDER BY created_at DESC,id DESC LIMIT #{pageSize} OFFSET #{offset}
+  </select>
+  <select id="selectById" resultType="com.mapvendor.module.order.repository.AdminOrderRow">
+    SELECT <include refid="columns"/> FROM reserve_order WHERE id=#{id}
+  </select>
+  <update id="confirmPending">
+    UPDATE reserve_order
+    SET status='CONFIRMED', confirmed_at=CURRENT_TIMESTAMP(3), version=version+1
+    WHERE id=#{id} AND status='PENDING'
+  </update>
+  <update id="cancelPendingByAdmin">
+    UPDATE reserve_order
+    SET status='CANCELLED', cancelled_at=CURRENT_TIMESTAMP(3), cancel_source='ADMIN',
+        cancel_reason=#{reason}, version=version+1
+    WHERE id=#{id} AND status='PENDING'
+  </update>
+  <insert id="insertStatusLog">
+    INSERT INTO order_status_log
+      (order_id,from_status,to_status,operator_type,operator_id,reason,request_id,created_at)
+    VALUES
+      (#{orderId},'PENDING',#{toStatus},#{operatorType},NULL,#{reason},#{requestId},CURRENT_TIMESTAMP(3))
+  </insert>
+</mapper>

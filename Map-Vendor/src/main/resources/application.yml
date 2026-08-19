@@ -61,6 +61,10 @@ management:
 
 map-vendor:
   timezone: Asia/Shanghai
+  export:
+    max-rows: ${MAP_VENDOR_EXPORT_MAX_ROWS:10000}
+    max-date-range-days: ${MAP_VENDOR_EXPORT_MAX_DATE_RANGE_DAYS:366}
+    fetch-size: ${MAP_VENDOR_EXPORT_FETCH_SIZE:500}
   storage:
     root: ${MAP_VENDOR_STORAGE_ROOT:D:/Map-Vendor-Data/images}
     public-base-url: ${MAP_VENDOR_PUBLIC_BASE_URL:/files}
