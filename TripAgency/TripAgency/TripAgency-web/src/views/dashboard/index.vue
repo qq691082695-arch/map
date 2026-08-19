@@ -118,6 +118,7 @@ onMounted(async () => {
     recentOrders.value = orderRes.items
   } catch (error) {
     ElMessage.error(error.message)
+    //测试
   }
 })
 </script>
