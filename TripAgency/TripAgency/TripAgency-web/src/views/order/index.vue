@@ -127,15 +127,15 @@ const showError = error => ElMessage.error(error?.message || '请求失败')
 const fetchList = async () => {
   loading.value = true
   try {
-    const res = await api.getOrders(query)
-    list.value = res.data.list
-    total.value = res.data.total
+    const data = await api.getOrders(query)
+    list.value = data.items
+    total.value = data.total
   } catch (error) { showError(error) } finally { loading.value = false }
 }
 const loadBusinesses = async () => {
   try {
-    const res = await api.getShops({ page: 1, size: 100 })
-    businesses.value = res.data.list
+    const data = await api.getBusinesses({ page: 1, size: 100 })
+    businesses.value = data.items
   } catch (error) { showError(error) }
 }
 const handleSearch = () => { query.page = 1; fetchList() }
@@ -145,19 +145,19 @@ const showDetail = async row => {
   detailVisible.value = true
   detailLoading.value = true
   detail.value = {}
-  try { detail.value = (await api.getOrder(row.id)).data } catch (error) { showError(error); detailVisible.value = false } finally { detailLoading.value = false }
+  try { detail.value = await api.getOrder(row.id) } catch (error) { showError(error); detailVisible.value = false } finally { detailLoading.value = false }
 }
 const confirmOrder = row => ElMessageBox.confirm(`确认订单「${row.orderNo}」？确认后用户不可取消。`, '确认订单', {
   confirmButtonText: '确认', cancelButtonText: '返回', type: 'warning'
 }).then(async () => {
-  try { const res = await api.confirmOrder(row.id); ElMessage.success(res.message); fetchList() } catch (error) { showError(error); fetchList() }
+  try { await api.confirmOrder(row.id); ElMessage.success('订单已确认'); fetchList() } catch (error) { showError(error); fetchList() }
 }).catch(() => {})
 const openCancelDialog = row => { current.value = row; cancelReason.value = ''; cancelVisible.value = true }
 const submitCancel = async () => {
   const reason = cancelReason.value.trim()
   if (!reason) return ElMessage.warning('请填写取消原因')
   submitting.value = true
-  try { const res = await api.cancelOrder(current.value.id, reason); ElMessage.success(res.message); cancelVisible.value = false; fetchList() }
+  try { await api.cancelOrder(current.value.id, reason); ElMessage.success('订单已取消'); cancelVisible.value = false; fetchList() }
   catch (error) { showError(error); fetchList() } finally { submitting.value = false }
 }
 onMounted(() => { fetchList(); loadBusinesses() })

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { api } from '@/api'
+import { login as loginRequest } from '@/api/modules/auth'
 
 const TOKEN_KEY = 'trip_agency_token'
 const USER_KEY = 'trip_agency_user'
@@ -14,15 +14,12 @@ export const useAuthStore = defineStore('auth', {
   },
   actions: {
     async login(form) {
-      const res = await api.login(form)
-      if (!res.ok) {
-        throw new Error(res.message)
-      }
-      this.token = res.data.token
-      this.user = res.data.user
+      const data = await loginRequest(form)
+      this.token = data.token
+      this.user = data.user
       localStorage.setItem(TOKEN_KEY, this.token)
       localStorage.setItem(USER_KEY, JSON.stringify(this.user))
-      return res.data
+      return data
     },
     logout() {
       this.token = ''

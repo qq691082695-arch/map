@@ -176,11 +176,11 @@ const removePoint = (idx) => {
 const fetchList = async () => {
   loading.value = true
   try {
-    const res = await api.getUniversities(query)
-    if (res.ok) {
-      list.value = res.data.list
-      total.value = res.data.total
-    }
+    const data = await api.getUniversities(query)
+    list.value = data.items
+    total.value = data.total
+  } catch (error) {
+    ElMessage.error(error.message)
   } finally {
     loading.value = false
   }
@@ -237,14 +237,17 @@ const handleSave = () => {
     saving.value = true
     try {
       const payload = { name: form.name, intro: form.intro, polygonPoints: form.polygonPoints, imageResourceIds: form.images.map(image => image.resourceId) }
-      const res = form.id ? await api.updateUniversity({ id: form.id, ...payload }) : await api.addUniversity(payload)
-      if (res.ok) {
-        ElMessage.success(res.message || '保存成功')
-        dialogVisible.value = false
-        fetchList()
+      if (form.id) {
+        await api.updateUniversity({ id: form.id, ...payload })
+        ElMessage.success('保存成功')
       } else {
-        ElMessage.error(res.message)
+        await api.addUniversity(payload)
+        ElMessage.success('新增成功')
       }
+      dialogVisible.value = false
+      fetchList()
+    } catch (error) {
+      ElMessage.error(error.message)
     } finally {
       saving.value = false
     }
@@ -265,11 +268,12 @@ const checkArea = () => {
 }
 
 const toggleShow = async (row) => {
-  const res = await api.updateUniversityStatus(row.id, row.status === 'ENABLED' ? 'DISABLED' : 'ENABLED')
-  if (!res.ok) {
-    ElMessage.error(res.message)
-  } else {
-    ElMessage.success(res.message)
+  try {
+    const nextStatus = row.status === 'ENABLED' ? 'DISABLED' : 'ENABLED'
+    await api.updateUniversityStatus(row.id, nextStatus)
+    ElMessage.success(nextStatus === 'ENABLED' ? '已展示' : '已隐藏')
+  } catch (error) {
+    ElMessage.error(error.message)
   }
   fetchList()
 }
@@ -281,10 +285,12 @@ const handleDelete = (row) => {
     type: 'warning'
   })
     .then(async () => {
-      const res = await api.deleteUniversity(row.id)
-      if (res.ok) {
-        ElMessage.success(res.message)
+      try {
+        await api.deleteUniversity(row.id)
+        ElMessage.success('删除成功')
         fetchList()
+      } catch (error) {
+        ElMessage.error(error.message)
       }
     })
     .catch(() => {})
