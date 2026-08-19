@@ -23,7 +23,7 @@ const routes = [
         path: 'shop',
         name: 'shop',
         component: () => import('@/views/shop/index.vue'),
-        meta: { title: '商家管理', icon: 'Shop' }
+        meta: { title: '服务商管理', icon: 'Shop' }
       },
       {
         path: 'university',

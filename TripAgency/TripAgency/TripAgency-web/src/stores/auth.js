@@ -4,10 +4,19 @@ import { login as loginRequest } from '@/api/modules/auth'
 const TOKEN_KEY = 'trip_agency_token'
 const USER_KEY = 'trip_agency_user'
 
+const readUser = () => {
+  try {
+    const raw = localStorage.getItem(USER_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     token: localStorage.getItem(TOKEN_KEY) || '',
-    user: JSON.parse(localStorage.getItem(USER_KEY) || 'null')
+    user: readUser()
   }),
   getters: {
     isLogin: (state) => !!state.token

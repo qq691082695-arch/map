@@ -49,7 +49,7 @@ const auth = useAuthStore()
 
 const formRef = ref()
 const loading = ref(false)
-const form = reactive({ username: 'admin', password: '123456' })
+const form = reactive({ username: 'admin', password: '' })
 
 const rules = {
   username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
@@ -96,7 +96,19 @@ const handleLogin = () => {
 .login-card {
   width: 420px;
   z-index: 1;
-  border-radius: 12px;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 21, 41, 0.18);
+  animation: login-in 0.45s ease;
+}
+@keyframes login-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .login-head {
   text-align: center;

@@ -52,7 +52,11 @@
 
       <!-- 内容区 -->
       <el-main class="main">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <transition name="fade-slide" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </el-main>
     </el-container>
   </el-container>
@@ -72,7 +76,7 @@ const collapsed = ref(false)
 
 const menus = [
   { path: '/dashboard', title: '首页', icon: 'Odometer' },
-  { path: '/shop', title: '商家管理', icon: 'Shop' },
+  { path: '/shop', title: '服务商管理', icon: 'Shop' },
   { path: '/university', title: '高校管理', icon: 'School' },
   { path: '/order', title: '订单管理', icon: 'Tickets' }
 ]
@@ -122,6 +126,21 @@ const onCommand = (cmd) => {
 }
 .el-menu {
   border-right: none;
+  padding: 8px;
+}
+:deep(.el-menu-item) {
+  height: 44px;
+  line-height: 44px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+}
+:deep(.el-menu-item.is-active) {
+  background: linear-gradient(90deg, rgba(22, 119, 255, 0.92), rgba(22, 119, 255, 0.55));
+  color: #fff !important;
+}
+:deep(.el-menu-item:hover) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff !important;
 }
 .header {
   background: #fff;
@@ -130,6 +149,9 @@ const onCommand = (cmd) => {
   align-items: center;
   justify-content: space-between;
   height: 60px;
+  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.06);
+  position: relative;
+  z-index: 5;
 }
 .header-left {
   display: flex;

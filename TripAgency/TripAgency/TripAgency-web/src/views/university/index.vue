@@ -31,6 +31,7 @@
     <!-- 表格 -->
     <el-card shadow="never">
       <el-table v-loading="loading" :data="list" stripe>
+        <template #empty><el-empty description="暂无高校数据" :image-size="90" /></template>
         <el-table-column prop="id" label="ID" width="55" />
         <el-table-column label="高校名称" min-width="150" show-overflow-tooltip>
           <template #default="{ row }">
@@ -123,11 +124,11 @@
         <el-form-item label="展示图片">
           <div class="university-images">
             <div v-for="(image, idx) in form.images" :key="image.resourceId" class="university-image">
-              <el-image :src="image.url" fit="cover" />
+              <el-image :src="image.url" :preview-src-list="form.images.map(item => item.url)" preview-teleported :initial-index="idx" fit="cover" />
               <el-button link type="danger" @click="form.images.splice(idx, 1)">移除</el-button>
             </div>
-            <el-upload accept="image/jpeg,image/png,image/webp" :show-file-list="false" :http-request="uploadImage">
-              <el-button :loading="uploading">上传图片</el-button>
+            <el-upload accept="image/jpeg,image/png,image/webp" :show-file-list="false" :before-upload="validateImage" :http-request="uploadImage">
+              <el-button :loading="uploading" :icon="Plus">上传图片</el-button>
             </el-upload>
           </div>
         </el-form-item>
@@ -145,6 +146,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus, Delete } from '@element-plus/icons-vue'
 import { api } from '@/api'
+import { validateImage } from '@/utils/upload'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -263,6 +265,12 @@ const checkArea = () => {
     if (p.longitude == null || p.latitude == null || p.longitude === '' || p.latitude === '') return `第 ${i + 1} 个坐标点未填写完整`
     if (p.longitude < -180 || p.longitude > 180) return `第 ${i + 1} 个坐标点经度超出范围`
     if (p.latitude < -90 || p.latitude > 90) return `第 ${i + 1} 个坐标点纬度超出范围`
+  }
+  const seen = new Set()
+  for (const p of area) {
+    const key = `${p.longitude},${p.latitude}`
+    if (seen.has(key)) return '坐标区域存在重复点，请重新确认'
+    seen.add(key)
   }
   return ''
 }

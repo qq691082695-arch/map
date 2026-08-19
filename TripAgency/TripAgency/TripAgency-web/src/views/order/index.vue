@@ -11,13 +11,15 @@
         <el-option v-for="item in businesses" :key="item.id" :label="item.name" :value="item.id" />
       </el-select>
       <el-date-picker v-model="query.serviceDateRange" type="daterange" value-format="YYYY-MM-DD"
-        range-separator="至" start-placeholder="服务日期起" end-placeholder="服务日期止" @change="handleSearch" />
+        range-separator="至" start-placeholder="服务日期起" end-placeholder="服务日期止"
+        :shortcuts="dateShortcuts" @change="handleSearch" />
       <el-button type="primary" :icon="Search" @click="handleSearch">查询</el-button>
       <el-button @click="handleReset">重置</el-button>
     </div>
 
     <el-card shadow="never">
       <el-table v-loading="loading" :data="list" stripe>
+        <template #empty><el-empty description="暂无符合条件的订单" :image-size="90" /></template>
         <el-table-column prop="orderNo" label="订单编号" min-width="175" show-overflow-tooltip />
         <el-table-column label="类型" width="80">
           <template #default="{ row }"><el-tag :type="typeTag(row.serviceType)" size="small">{{ typeLabel(row.serviceType) }}</el-tag></template>
@@ -38,8 +40,8 @@
           <template #default="{ row }">
             <el-button link type="primary" @click="showDetail(row)">详情</el-button>
             <template v-if="row.status === 'PENDING'">
-              <el-button link type="success" @click="confirmOrder(row)">确认</el-button>
-              <el-button link type="danger" @click="openCancelDialog(row)">取消</el-button>
+              <el-button link type="success" :icon="CircleCheck" @click="confirmOrder(row)">确认</el-button>
+              <el-button link type="danger" :icon="CircleClose" @click="openCancelDialog(row)">取消</el-button>
             </template>
           </template>
         </el-table-column>
@@ -51,7 +53,7 @@
       </div>
     </el-card>
 
-    <el-dialog v-model="detailVisible" title="订单详情" width="720px">
+    <el-dialog v-model="detailVisible" :title="detail.orderNo ? `订单详情 · ${detail.orderNo}` : '订单详情'" width="720px" :close-on-click-modal="false">
       <el-skeleton v-if="detailLoading" :rows="8" animated />
       <el-descriptions v-else-if="detail.id" :column="2" border>
         <el-descriptions-item label="订单编号">{{ detail.orderNo }}</el-descriptions-item>
@@ -91,7 +93,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search } from '@element-plus/icons-vue'
+import { Search, CircleCheck, CircleClose } from '@element-plus/icons-vue'
 import { api } from '@/api'
 
 const statuses = [{ value: 'PENDING', label: '待确认' }, { value: 'CONFIRMED', label: '已确认' }, { value: 'CANCELLED', label: '已取消' }]
@@ -109,6 +111,11 @@ const list = ref([])
 const total = ref(0)
 const businesses = ref([])
 const query = reactive({ status: '', type: '', businessId: '', serviceDateRange: [], page: 1, size: 20 })
+const dateShortcuts = [
+  { text: '今天', value: () => { const d = new Date(); return [d, d] } },
+  { text: '最近 7 天', value: () => { const end = new Date(); const start = new Date(); start.setDate(start.getDate() - 6); return [start, end] } },
+  { text: '最近 30 天', value: () => { const end = new Date(); const start = new Date(); start.setDate(start.getDate() - 29); return [start, end] } }
+]
 const detailVisible = ref(false)
 const detailLoading = ref(false)
 const detail = ref({})

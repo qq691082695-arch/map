@@ -1,36 +1,42 @@
 <template>
   <view class="page">
-    <view v-if="business" class="create-wrap">
+    <!-- 加载态 -->
+    <view v-if="loading" class="loading-wrap">
+      <view class="loading-spinner"></view>
+      <text class="loading-text">加载中…</text>
+    </view>
+
+    <view v-else-if="business" class="create-wrap">
       <!-- 商家信息 -->
       <view class="section biz-card">
         <view class="biz-head">
           <text class="biz-name">{{ business.name }}</text>
-          <text class="biz-tag">{{ typeLabel }}</text>
+          <text class="biz-tag" :class="'tag-' + business.businessType">{{ typeLabel }}</text>
         </view>
         <text class="biz-addr">{{ business.address }}</text>
       </view>
 
       <!-- 联系信息 -->
       <view class="section">
-        <view class="sec-title">联系信息</view>
+        <view class="sec-title"><text class="sec-num">1</text>联系信息</view>
         <view class="field">
-          <text class="field-label">联系人</text>
-          <input v-model="form.contactName" class="field-input" placeholder="请输入联系人姓名" maxlength="64" />
+          <text class="field-label">👤 联系人</text>
+          <input v-model="form.contactName" class="field-input" placeholder="请输入联系人姓名" maxlength="64" cursor-spacing="50" confirm-type="next" />
         </view>
         <view class="field">
-          <text class="field-label">联系电话</text>
-          <input v-model="form.contactPhone" class="field-input" type="number" placeholder="请输入联系电话" maxlength="32" />
+          <text class="field-label">📞 联系电话</text>
+          <input v-model="form.contactPhone" class="field-input" type="number" placeholder="请输入联系电话" maxlength="32" cursor-spacing="50" confirm-type="done" />
         </view>
         <view class="field">
-          <text class="field-label">出行人数</text>
+          <text class="field-label">👥 出行人数</text>
           <view class="stepper">
-            <view class="step-btn" @click="changePeople(-1)">-</view>
-            <input v-model.number="form.peopleNum" class="step-input" type="number" @blur="normalizePeople" />
-            <view class="step-btn" @click="changePeople(1)">+</view>
+            <view class="step-btn" hover-class="step-btn-hover" @click="changePeople(-1)">−</view>
+            <input v-model.number="form.peopleNum" class="step-input" type="number" @blur="normalizePeople" cursor-spacing="50" />
+            <view class="step-btn" hover-class="step-btn-hover" @click="changePeople(1)">+</view>
           </view>
         </view>
         <view class="field">
-          <text class="field-label">服务日期</text>
+          <text class="field-label">📅 服务日期</text>
           <picker mode="date" :start="minDate" :value="form.serviceDate" @change="onDateChange">
             <view class="picker-value">{{ form.serviceDate }}</view>
           </picker>
@@ -39,12 +45,13 @@
 
       <!-- 出行：车辆选择 -->
       <view v-if="business.businessType === 'TRAVEL'" class="section">
-        <view class="sec-title">车辆选择</view>
+        <view class="sec-title"><text class="sec-num">2</text>车辆选择</view>
         <view
           class="option-card"
           v-for="car in business.detail.cars"
           :key="car.id"
           :class="{ active: form.carId === car.id }"
+          hover-class="option-card-hover"
           @click="form.carId = car.id"
         >
           <image v-if="car.imageUrl" class="option-img" :src="car.imageUrl" mode="aspectFill" />
@@ -52,33 +59,36 @@
             <text class="option-name">{{ car.model }}</text>
             <text class="option-sub">{{ car.seatNum }}座{{ car.description ? ' · ' + car.description : '' }}</text>
           </view>
-          <view class="radio-dot" :class="{ on: form.carId === car.id }"></view>
+          <view class="radio-dot" :class="{ on: form.carId === car.id }">
+            <text v-if="form.carId === car.id" class="radio-check">✓</text>
+          </view>
         </view>
         <view class="field">
           <text class="field-label">车辆数量</text>
           <view class="stepper">
-            <view class="step-btn" @click="changeQty('carQuantity', -1)">-</view>
-            <input v-model.number="form.carQuantity" class="step-input" type="number" />
-            <view class="step-btn" @click="changeQty('carQuantity', 1)">+</view>
+            <view class="step-btn" hover-class="step-btn-hover" @click="changeQty('carQuantity', -1)">−</view>
+            <input v-model.number="form.carQuantity" class="step-input" type="number" cursor-spacing="50" />
+            <view class="step-btn" hover-class="step-btn-hover" @click="changeQty('carQuantity', 1)">+</view>
           </view>
         </view>
         <view class="field">
           <text class="field-label">服务方式</text>
           <view class="mode-row">
-            <view class="mode-pill" :class="{ on: form.serviceMode === 'DAY_CHARTER' }" @click="form.serviceMode = 'DAY_CHARTER'">按日包车</view>
-            <view class="mode-pill" :class="{ on: form.serviceMode === 'ROUND_TRIP' }" @click="form.serviceMode = 'ROUND_TRIP'">往返接送</view>
+            <view class="mode-pill" :class="{ on: form.serviceMode === 'DAY_CHARTER' }" hover-class="mode-pill-hover" @click="form.serviceMode = 'DAY_CHARTER'">🚗 按日包车</view>
+            <view class="mode-pill" :class="{ on: form.serviceMode === 'ROUND_TRIP' }" hover-class="mode-pill-hover" @click="form.serviceMode = 'ROUND_TRIP'">🔄 往返接送</view>
           </view>
         </view>
       </view>
 
       <!-- 住宿：房型选择 -->
       <view v-if="business.businessType === 'HOTEL'" class="section">
-        <view class="sec-title">房型选择</view>
+        <view class="sec-title"><text class="sec-num">2</text>房型选择</view>
         <view
           class="option-card"
           v-for="room in business.detail.rooms"
           :key="room.id"
           :class="{ active: form.roomId === room.id }"
+          hover-class="option-card-hover"
           @click="form.roomId = room.id"
         >
           <image v-if="room.imageUrl" class="option-img" :src="room.imageUrl" mode="aspectFill" />
@@ -86,38 +96,44 @@
             <text class="option-name">{{ room.name }}</text>
             <text class="option-sub">{{ room.bedSpec }}{{ room.description ? ' · ' + room.description : '' }}</text>
           </view>
-          <view class="radio-dot" :class="{ on: form.roomId === room.id }"></view>
+          <view class="radio-dot" :class="{ on: form.roomId === room.id }">
+            <text v-if="form.roomId === room.id" class="radio-check">✓</text>
+          </view>
         </view>
         <view class="field">
           <text class="field-label">房间数量</text>
           <view class="stepper">
-            <view class="step-btn" @click="changeQty('roomQuantity', -1)">-</view>
-            <input v-model.number="form.roomQuantity" class="step-input" type="number" />
-            <view class="step-btn" @click="changeQty('roomQuantity', 1)">+</view>
+            <view class="step-btn" hover-class="step-btn-hover" @click="changeQty('roomQuantity', -1)">−</view>
+            <input v-model.number="form.roomQuantity" class="step-input" type="number" cursor-spacing="50" />
+            <view class="step-btn" hover-class="step-btn-hover" @click="changeQty('roomQuantity', 1)">+</view>
           </view>
         </view>
       </view>
 
       <!-- 餐饮：用餐时段 -->
       <view v-if="business.businessType === 'FOOD'" class="section">
-        <view class="sec-title">用餐时段</view>
+        <view class="sec-title"><text class="sec-num">2</text>用餐时段</view>
         <view class="mode-row">
-          <view class="mode-pill" :class="{ on: form.mealPeriod === 'BREAKFAST' }" @click="form.mealPeriod = 'BREAKFAST'">早餐</view>
-          <view class="mode-pill" :class="{ on: form.mealPeriod === 'LUNCH' }" @click="form.mealPeriod = 'LUNCH'">午餐</view>
-          <view class="mode-pill" :class="{ on: form.mealPeriod === 'DINNER' }" @click="form.mealPeriod = 'DINNER'">晚餐</view>
+          <view class="mode-pill" :class="{ on: form.mealPeriod === 'BREAKFAST' }" hover-class="mode-pill-hover" @click="form.mealPeriod = 'BREAKFAST'">🌅 早餐</view>
+          <view class="mode-pill" :class="{ on: form.mealPeriod === 'LUNCH' }" hover-class="mode-pill-hover" @click="form.mealPeriod = 'LUNCH'">☀️ 午餐</view>
+          <view class="mode-pill" :class="{ on: form.mealPeriod === 'DINNER' }" hover-class="mode-pill-hover" @click="form.mealPeriod = 'DINNER'">🌙 晚餐</view>
         </view>
-        <view v-if="business.detail.recommendedDishes" class="hint">推荐菜：{{ business.detail.recommendedDishes }}</view>
+        <view v-if="business.detail.recommendedDishes" class="hint">🍽 推荐菜：{{ business.detail.recommendedDishes }}</view>
       </view>
 
-      <button class="submit-btn" :disabled="submitting" @click="submit">
-        {{ submitting ? '提交中...' : '提交预约' }}
-      </button>
+      <!-- 吸底提交栏 -->
+      <view class="submit-bar">
+        <button class="submit-btn" hover-class="btn-hover" :disabled="submitting" @click="submit">
+          {{ submitting ? '提交中…' : '提交预约' }}
+        </button>
+      </view>
     </view>
 
     <!-- 商家缺失空态（避免在 onLoad 中自动路由触发开发态 routeDone 报错） -->
     <view v-else class="empty">
+      <view class="empty-emoji">🏫</view>
       <text class="empty-text">商家不存在或已下架</text>
-      <view class="empty-btn" @click="goBack">返回</view>
+      <view class="empty-btn" hover-class="btn-hover" @click="goBack">返回</view>
     </view>
   </view>
 </template>
@@ -134,6 +150,7 @@ import { SERVICE_TYPE_MAP } from '../../common/config'
 
 const business = ref(null)
 const submitting = ref(false)
+const loading = ref(true)
 const minDate = today()
 
 const form = reactive({
@@ -181,6 +198,9 @@ const loadBusiness = (id) => {
         return
       }
       uni.showToast({ title: e.message || '商家加载失败', icon: 'none' })
+    })
+    .finally(() => {
+      loading.value = false
     })
 }
 
@@ -343,7 +363,7 @@ const submit = () => {
 .page {
   min-height: 100vh;
   background: #f5f6f8;
-  padding: 24rpx;
+  padding: 24rpx 24rpx 200rpx;
 }
 .create-wrap {
   padding-bottom: 60rpx;
@@ -353,11 +373,26 @@ const submit = () => {
   border-radius: 20rpx;
   padding: 26rpx 30rpx;
   margin-bottom: 20rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.05);
 }
 .sec-title {
+  display: flex;
+  align-items: center;
   font-size: 30rpx;
   font-weight: 600;
   margin-bottom: 20rpx;
+}
+.sec-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40rpx;
+  height: 40rpx;
+  margin-right: 14rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4a9dff 0%, #1677ff 100%);
+  color: #fff;
+  font-size: 24rpx;
 }
 .biz-head {
   display: flex;
@@ -366,14 +401,28 @@ const submit = () => {
 .biz-name {
   font-size: 36rpx;
   font-weight: bold;
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
 }
 .biz-tag {
+  flex-shrink: 0;
   margin-left: 16rpx;
-  font-size: 24rpx;
-  color: #1677ff;
-  background: #e8f3ff;
+  font-size: 22rpx;
   padding: 4rpx 14rpx;
   border-radius: 8rpx;
+}
+.tag-TRAVEL {
+  color: #1677ff;
+  background: #e8f3ff;
+}
+.tag-HOTEL {
+  color: #d46b08;
+  background: #fff3e0;
+}
+.tag-FOOD {
+  color: #16a34a;
+  background: #e8f8ec;
 }
 .biz-addr {
   display: block;
@@ -404,7 +453,7 @@ const submit = () => {
 }
 .picker-value {
   font-size: 28rpx;
-  color: #333;
+  color: #1677ff;
 }
 .stepper {
   display: flex;
@@ -416,9 +465,14 @@ const submit = () => {
   line-height: 56rpx;
   text-align: center;
   background: #f4f6fa;
-  border-radius: 10rpx;
+  border-radius: 50%;
   font-size: 32rpx;
   color: #333;
+  transition: all 0.15s;
+}
+.step-btn-hover {
+  background: #e0e8f5;
+  transform: scale(0.92);
 }
 .step-input {
   width: 90rpx;
@@ -432,10 +486,16 @@ const submit = () => {
   border: 2rpx solid #e8ecf2;
   border-radius: 14rpx;
   margin-bottom: 16rpx;
+  transition: all 0.15s;
+}
+.option-card-hover {
+  border-color: #bcd6ff;
+  background: #f7faff;
 }
 .option-card.active {
   border-color: #1677ff;
   background: #f0f6ff;
+  box-shadow: 0 6rpx 16rpx rgba(22, 119, 255, 0.15);
 }
 .option-img {
   width: 120rpx;
@@ -451,7 +511,7 @@ const submit = () => {
 .option-name {
   font-size: 28rpx;
   font-weight: 500;
-  color: #333;
+  color: #1f2329;
 }
 .option-sub {
   display: block;
@@ -464,10 +524,19 @@ const submit = () => {
   height: 34rpx;
   border-radius: 50%;
   border: 3rpx solid #c0c4cc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 .radio-dot.on {
   border-color: #1677ff;
   background: #1677ff;
+}
+.radio-check {
+  color: #fff;
+  font-size: 24rpx;
+  line-height: 1;
 }
 .mode-row {
   display: flex;
@@ -481,10 +550,14 @@ const submit = () => {
   background: #f7f8fa;
   font-size: 28rpx;
   color: #333;
+  transition: all 0.15s;
+}
+.mode-pill-hover {
+  opacity: 0.85;
 }
 .mode-pill.on {
   border-color: #1677ff;
-  background: #1677ff;
+  background: linear-gradient(135deg, #4a9dff 0%, #1677ff 100%);
   color: #fff;
 }
 .hint {
@@ -493,10 +566,22 @@ const submit = () => {
   color: #888;
   line-height: 1.6;
 }
+.submit-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  padding: 16rpx 24rpx 20rpx;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 -6rpx 24rpx rgba(0, 0, 0, 0.08);
+  padding-bottom: calc(20rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+}
 .submit-btn {
-  margin-top: 30rpx;
-  background: #1677ff;
+  background: linear-gradient(135deg, #4a9dff 0%, #1677ff 100%);
   color: #fff;
+  font-weight: 500;
 }
 .submit-btn[disabled] {
   background: #a0c4ff;
@@ -506,15 +591,42 @@ const submit = () => {
   text-align: center;
   padding-top: 200rpx;
 }
+.empty-emoji {
+  font-size: 96rpx;
+  margin-bottom: 20rpx;
+}
 .empty-text {
   color: #999;
   font-size: 28rpx;
+}
+.loading-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 240rpx;
+}
+.loading-spinner {
+  width: 56rpx;
+  height: 56rpx;
+  border: 6rpx solid #e6ebf2;
+  border-top-color: #1677ff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.loading-text {
+  margin-top: 20rpx;
+  font-size: 24rpx;
+  color: #888;
 }
 .empty-btn {
   margin: 40rpx auto 0;
   width: 260rpx;
   padding: 20rpx 0;
-  background: #1677ff;
+  background: linear-gradient(135deg, #4a9dff 0%, #1677ff 100%);
   color: #fff;
   border-radius: 40rpx;
   font-size: 28rpx;

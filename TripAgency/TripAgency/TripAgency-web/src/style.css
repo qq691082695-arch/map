@@ -1,3 +1,14 @@
+:root {
+  --app-primary: #1677ff;
+  --app-success: #52c41a;
+  --app-warning: #fa8c16;
+  --app-danger: #f5222d;
+  --app-bg: #f0f2f5;
+  --app-radius: 10px;
+  --app-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --app-shadow-hover: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -12,6 +23,20 @@ body,
     'Microsoft YaHei', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   color: #303133;
+  background: var(--app-bg);
+}
+
+/* 全局细滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d0d5dc;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b0b7c0;
 }
 
 .page-container {
@@ -30,4 +55,47 @@ body,
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+
+/* 卡片统一风格 */
+.el-card {
+  border-radius: var(--app-radius);
+  border: none;
+  box-shadow: var(--app-shadow);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.el-card__header {
+  padding: 14px 20px;
+  font-weight: 600;
+  border-bottom-color: #f0f0f0;
+}
+.el-card__body {
+  padding: 20px;
+}
+.el-card.shadow-hover:hover {
+  box-shadow: var(--app-shadow-hover);
+}
+
+/* 页面切换动画 */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* 空数据留白 */
+.el-table .el-table__empty-block {
+  padding: 28px 0;
+}
+
+/* 分页与表格密度 */
+.el-pagination {
+  --el-pagination-bg-color: #fff;
 }
