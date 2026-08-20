@@ -19,6 +19,7 @@ request.interceptors.request.use((config) => {
 
 request.interceptors.response.use(
   (response) => {
+    if (response.config.responseType === 'blob') return response
     const payload = response.data
     if (payload && payload.code === 'OK') return payload.data
     return Promise.reject(new Error(payload?.message || '请求失败'))
@@ -37,7 +38,7 @@ export const cleanParams = (params = {}) =>
 export const buildUrl = (template, values = {}) =>
   template.replace(/:([a-zA-Z_]\w*)/g, (_, key) => encodeURIComponent(values[key] ?? ''))
 
-export const http = (method, url, { data, params } = {}) => request({ method, url, data, params })
+export const http = (method, url, { data, params, responseType } = {}) => request({ method, url, data, params, responseType })
 
 export const createApi = (definitions) => {
   const api = {}
