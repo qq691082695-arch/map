@@ -298,6 +298,22 @@ components:
       type: object
       required: [name, sortNo]
       properties: {name: {type: string, maxLength: 128}, description: {type: string, maxLength: 500, nullable: true}, imageResourceId: {type: integer, format: int64, nullable: true}, sortNo: {type: integer, minimum: 0}}
+    BusinessResource:
+      type: object
+      required: [id, businessId, name, status, createdAt, updatedAt]
+      properties:
+        id: {type: integer, format: int64}
+        businessId: {type: integer, format: int64}
+        name: {type: string}
+        seatNum: {type: integer, nullable: true}
+        bedSpec: {type: string, nullable: true}
+        description: {type: string, nullable: true}
+        imageResourceId: {type: integer, format: int64, nullable: true}
+        imageUrl: {type: string, nullable: true, description: 图片公开访问 URL，不包含存储物理路径}
+        sortNo: {type: integer, nullable: true}
+        status: {type: string, enum: [ENABLED, DISABLED]}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
     BusinessSaveRequest:
       type: object
       required: [name, address, longitude, latitude, businessType]

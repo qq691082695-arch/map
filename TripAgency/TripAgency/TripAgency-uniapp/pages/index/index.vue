@@ -20,13 +20,12 @@
       <text class="loading-text">正在加载地图数据…</text>
     </view>
 
-    <!-- 地图左上角：图例 / 演示模式提示 -->
+    <!-- 地图左上角图例 -->
     <view class="map-legend">
       <view class="legend-chip">
         <view class="legend-dot"></view>
         <text>高校服务区域</text>
       </view>
-      <view v-if="loadFailed" class="legend-chip legend-demo">演示数据</view>
     </view>
 
     <!-- 我的预约入口 -->
@@ -144,36 +143,13 @@ const catTabs = [
   { type: 'food',   label: '饮食', emoji: '🍜' }
 ]
 
-// ==========武汉大学主校区（文理学部+工学部+信息学部）红色区域：接口不可达时的演示兜底==========
-const DEMO_POLYGONS = [
-  {
-    points: [
-      { latitude: 30.5262, longitude: 114.3560 }, // 信息学部南侧(珞喻路)
-      { latitude: 30.5295, longitude: 114.3660 }, // 东湖南路内侧
-      { latitude: 30.5335, longitude: 114.3725 }, // 东南近东湖
-      { latitude: 30.5385, longitude: 114.3745 }, // 东侧文澜门/东湖滨
-      { latitude: 30.5425, longitude: 114.3710 }, // 东北工学部/东湖水岸
-      { latitude: 30.5430, longitude: 114.3630 }, // 北界八一路
-      { latitude: 30.5390, longitude: 114.3555 }, // 正门/八一路
-      { latitude: 30.5350, longitude: 114.3520 }, // 武大西门
-      { latitude: 30.5300, longitude: 114.3508 }, // 西界珞狮路
-      { latitude: 30.5262, longitude: 114.3560 }  // 闭合
-    ],
-    strokeWidth: 2,
-    strokeColor: "#ff0000",
-    fillColor: "#ff000033"
-  }
-]
-
 // ==========真实地图数据（GET /api/v1/app/map-overview）==========
 const uniList = ref([])          // 启用未删除的高校区域
 const bizList = ref([])          // 启用未删除的商家点位
-const loadFailed = ref(false)    // 接口不可达时使用演示数据兜底
 const loading = ref(true)        // 首次加载中
 
 // 高校区域生成地图多边形（polygonPoints 结构同后端 GeoPoint）
 const polygonsList = computed(() => {
-  if (loadFailed.value) return DEMO_POLYGONS
   return uniList.value.map(u => ({
     points: u.polygonPoints,
     strokeWidth: 2,
@@ -241,10 +217,6 @@ const buildUniMarker = (u, center) => {
 }
 
 const uniNameMarkers = computed(() => {
-  if (loadFailed.value) {
-    // 演示兜底：为演示区域标注名称
-    return [buildUniMarker({ id: 0, name: '武汉大学（主校区）' }, { longitude: 114.362, latitude: 30.5385 })]
-  }
   return uniList.value.map(u => {
     const center = polygonCenter(u.polygonPoints)
     if (!center) return null
@@ -255,71 +227,7 @@ const uniNameMarkers = computed(() => {
 // 地图总 markers：高校名称标注 + 商家点位
 const allMarkers = computed(() => [...uniNameMarkers.value, ...markerList.value])
 
-// ============商家模拟数据，iconPath只写文件名（接口不可达时的演示兜底）============
-const DEMO_SHOPS = [
-  {
-    id: 1,
-    name: "商务接送车队",
-    type: "travel",
-    typeLabel: "🚗出行",
-    longitude: 114.322,
-    latitude: 30.601,
-    address: "武汉市江汉区商务区",
-    intro:"本公司专注武汉全域商务接送，提供7‑55座车辆，支持出差接机、会务接送，专职司机。",
-    desc:"可提供企业长期合作包车服务",
-    iconPath: "map-blue.png"
-  },
-  {
-    id: 2,
-    name: "楚河汉街商务快捷酒店",
-    type: "hotel",
-    typeLabel: "🏨住宿",
-    longitude: 114.305,
-    latitude: 30.582,
-    address: "武昌楚河汉街附近",
-    intro:"靠近地铁，适合出差商务入住",
-    desc:"靠近地铁，适合出差商务入住",
-    iconPath: "map-red.png"
-  },
-  {
-    id: 3,
-    name: "洪山广场铂悦酒店",
-    type: "hotel",
-    typeLabel: "🏨住宿",
-    longitude: 114.335,
-    latitude: 30.596,
-    address: "洪山广场地铁站旁",
-    intro:"高档商务酒店，配套会议室",
-    desc:"高档商务酒店，配套会议室",
-    iconPath: "map-red.png"
-  },
-  {
-    id: 4,
-    name: "洪山商务简餐酒楼",
-    type: "food",
-    typeLabel: "🍜饮食",
-    longitude: 114.331,
-    latitude: 30.593,
-    address: "洪山广场周边",
-    intro:"支持出差团体简餐、小型商务接待",
-    desc:"支持出差团体简餐、小型商务接待",
-    iconPath: "map-green.png"
-  },
-  {
-    id: 5,
-    name: "楚宴融合菜馆",
-    type: "food",
-    typeLabel: "🍜饮食",
-    longitude: 114.298,
-    latitude: 30.588,
-    address: "水果湖商圈",
-    intro:"适合企业客户正式商务宴请",
-    desc:"适合企业客户正式商务宴请",
-    iconPath: "map-green.png"
-  }
-]
-
-// ============商家归一化：真实数据（businessType 大写）与演示数据统一结构============
+// ============商家归一化：后端 businessType 转为页面分类值============
 const iconFor = (businessType) => {
   if (businessType === 'TRAVEL') return 'map-blue.png'
   if (businessType === 'HOTEL') return 'map-red.png'
@@ -349,16 +257,13 @@ const loadData = () => {
   loading.value = true
   getMapOverview()
     .then((data) => {
-      loadFailed.value = false
       uniList.value = (data && data.universities) || []
       bizList.value = (data && data.businesses) || []
     })
     .catch((e) => {
-      if (e.statusCode === 0) {
-        loadFailed.value = true
-      } else {
-        uni.showToast({ title: e.message || '地图数据加载失败', icon: 'none' })
-      }
+      uniList.value = []
+      bizList.value = []
+      uni.showToast({ title: e.message || '地图数据加载失败', icon: 'none' })
     })
     .finally(() => {
       loading.value = false
@@ -367,9 +272,7 @@ const loadData = () => {
 
 onLoad(() => loadData())
 
-const shopAllList = computed(() =>
-  (loadFailed.value ? DEMO_SHOPS : bizList.value).map(normalizeShop)
-)
+const shopAllList = computed(() => bizList.value.map(normalizeShop))
 
 // ============按分类过滤后的商家============
 const filteredShopList = computed(() => {
@@ -569,11 +472,6 @@ const gotoOrders = () => {
   background: #ff4d4f;
   margin-right: 8rpx;
 }
-.legend-demo {
-  color: #d46b08;
-  background: rgba(255, 247, 230, 0.95);
-}
-
 /* ==========我的预约入口========== */
 .my-orders-btn {
   position: absolute;

@@ -144,8 +144,6 @@ import { onLoad } from '@dcloudio/uni-app'
 import { getBusinessDetail, createOrder } from '../../api/app'
 import { getOpenid } from '../../common/auth'
 import { today, resolveImg } from '../../common/util'
-import { saveLocalOrder } from '../../common/local-orders'
-import { mockBusinesses } from '../../common/mock'
 import { SERVICE_TYPE_MAP } from '../../common/config'
 
 const business = ref(null)
@@ -191,12 +189,6 @@ const loadBusiness = (id) => {
       business.value = normalizeImages(data)
     })
     .catch((e) => {
-      // 网络不可达或后端窗口 06B 接口未实现（未知路由 404）时使用演示数据
-      if (e.statusCode === 0 || (e.statusCode === 404 && e.code === 'ERROR')) {
-        const mock = mockBusinesses.find(b => b.id === id)
-        business.value = mock ? normalizeImages(mock) : null
-        return
-      }
       uni.showToast({ title: e.message || '商家加载失败', icon: 'none' })
     })
     .finally(() => {
@@ -237,6 +229,7 @@ const changeQty = (key, delta) => {
 }
 
 const validate = () => {
+  if (!form.openid) return '请先完成微信登录'
   if (!business.value) return '商家不存在或已下架'
   if (!form.contactName || !form.contactName.trim()) return '请填写联系人姓名'
   if (!form.contactPhone || !form.contactPhone.trim()) return '请填写联系电话'
@@ -278,49 +271,11 @@ const buildPayload = () => {
   return payload
 }
 
-const buildDemoOrder = (payload) => {
-  const type = payload.serviceType
-  const biz = business.value
-  const now = new Date().toISOString()
-  const item = {
-    id: Date.now(),
-    orderNo: 'MO' + String(Date.now()),
-    businessId: payload.businessId,
-    businessNameSnapshot: biz.name,
-    serviceType: type,
-    contactName: payload.contactName,
-    contactPhone: payload.contactPhone,
-    peopleNum: payload.peopleNum,
-    serviceDate: payload.serviceDate,
-    status: 'PENDING',
-    createdAt: now,
-    updatedAt: now
-  }
-  if (type === 'TRAVEL') {
-    const car = biz.detail.cars.find(c => c.id === payload.carId)
-    item.carId = payload.carId
-    item.carSpecSnapshot = car ? car.model : ''
-    item.carQuantity = payload.carQuantity
-    item.serviceMode = payload.serviceMode
-  } else if (type === 'HOTEL') {
-    const room = biz.detail.rooms.find(r => r.id === payload.roomId)
-    item.roomId = payload.roomId
-    item.roomSpecSnapshot = room ? room.name + ' ' + room.bedSpec : ''
-    item.roomQuantity = payload.roomQuantity
-  } else {
-    item.mealPeriod = payload.mealPeriod
-  }
-  return item
-}
-
-const afterSuccess = (order, demo) => {
+const afterSuccess = (order) => {
   submitting.value = false
-  const content = demo
-    ? '后端接口暂不可用，已生成本地演示预约（待确认）'
-    : '订单号：' + order.orderNo + '\n当前状态：待管理员确认'
   uni.showModal({
-    title: demo ? '演示模式' : '预约提交成功',
-    content,
+    title: '预约提交成功',
+    content: '订单号：' + order.orderNo + '\n当前状态：待管理员确认',
     confirmText: '查看我的预约',
     cancelText: '继续逛逛',
     success: (r) => {
@@ -344,16 +299,10 @@ const submit = () => {
   submitting.value = true
   createOrder(payload)
     .then((order) => {
-      afterSuccess(order, false)
+      afterSuccess(order)
     })
     .catch((e) => {
       submitting.value = false
-      if (e.statusCode === 0) {
-        const order = buildDemoOrder(payload)
-        saveLocalOrder(order)
-        afterSuccess(order, true)
-        return
-      }
       uni.showToast({ title: e.message || '预约提交失败', icon: 'none' })
     })
 }

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mapvendor.module.order.repository.AppOrderCreateMapper">
+  <insert id="claimIdempotency">
+    INSERT INTO api_idempotency(openid,idempotency_key,request_hash,status,expires_at)
+    VALUES(#{openid},#{key},#{hash},'PROCESSING',#{expiresAt})
+    ON DUPLICATE KEY UPDATE id=id
+  </insert>
+  <select id="lockIdempotency" resultType="com.mapvendor.module.order.repository.IdempotencyRow">
+    SELECT id,request_hash,response_ref,status FROM api_idempotency WHERE openid=#{openid} AND idempotency_key=#{key} FOR UPDATE
+  </select>
+  <insert id="upsertUser">INSERT INTO wx_user(openid,last_seen_at) VALUES(#{openid},CURRENT_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE last_seen_at=CURRENT_TIMESTAMP(3)</insert>
+  <select id="selectUserId" resultType="long">SELECT id FROM wx_user WHERE openid=#{openid}</select>
+  <select id="selectVisibleBusiness" resultType="com.mapvendor.module.order.repository.OrderBusinessRow">
+    SELECT id,name,business_type,status FROM business WHERE id=#{id} AND deleted_at IS NULL
+  </select>
+  <select id="selectVisibleCar" resultType="com.mapvendor.module.order.repository.OrderResourceRow">
+    SELECT id,business_id,model AS name,seat_num,NULL AS bed_spec,status FROM business_travel_car WHERE id=#{id} AND deleted_at IS NULL
+  </select>
+  <select id="selectVisibleRoom" resultType="com.mapvendor.module.order.repository.OrderResourceRow">
+    SELECT id,business_id,name,NULL AS seat_num,bed_spec,status FROM business_hotel_room WHERE id=#{id} AND deleted_at IS NULL
+  </select>
+  <insert id="insertOrder" useGeneratedKeys="true" keyProperty="row.id">
+    INSERT INTO reserve_order(order_no,openid,user_id,business_id,business_name_snapshot,business_type,service_type,
+      contact_name,contact_phone,people_num,service_date,status,car_id,car_spec_snapshot,car_quantity,service_mode,
+      room_id,room_spec_snapshot,room_quantity,meal_period,option_snapshot_json,version)
+    VALUES(#{row.orderNo},#{row.request.openid},#{row.userId},#{row.request.businessId},#{row.businessName},#{row.businessType},#{row.request.serviceType},
+      #{row.request.contactName},#{row.request.contactPhone},#{row.request.peopleNum},#{row.request.serviceDate},'PENDING',
+      #{row.request.carId},#{row.carSnapshot},#{row.request.carQuantity},#{row.request.serviceMode},
+      #{row.request.roomId},#{row.roomSnapshot},#{row.request.roomQuantity},#{row.request.mealPeriod},
+      <choose><when test="row.carSnapshot != null">CONCAT('{"carSpec":',#{row.carSnapshot},'}')</when><when test="row.roomSnapshot != null">CONCAT('{"roomSpec":',#{row.roomSnapshot},'}')</when><otherwise>NULL</otherwise></choose>,0)
+  </insert>
+  <insert id="insertInitialLog">
+    INSERT INTO order_status_log(order_id,from_status,to_status,operator_type,operator_id,reason,request_id,created_at)
+    VALUES(#{orderId},NULL,'PENDING','USER',NULL,NULL,#{requestId},CURRENT_TIMESTAMP(3))
+  </insert>
+  <update id="completeIdempotency">UPDATE api_idempotency SET status='SUCCEEDED',response_ref=#{orderId} WHERE id=#{id} AND status='PROCESSING'</update>
+  <select id="selectOrder" resultType="com.mapvendor.module.order.repository.AdminOrderRow">
+    SELECT id,order_no,openid,business_id,business_name_snapshot,business_type,service_type,contact_name,contact_phone,
+      people_num,service_date,status,car_id,car_spec_snapshot,car_quantity,service_mode,room_id,room_spec_snapshot,
+      room_quantity,meal_period,option_snapshot_json,confirmed_at,cancelled_at,cancel_source,cancel_reason,created_at,updated_at
+    FROM reserve_order WHERE id=#{id}
+  </select>
+</mapper>

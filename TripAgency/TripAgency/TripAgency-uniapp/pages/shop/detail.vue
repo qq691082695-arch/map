@@ -106,7 +106,6 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getBusinessDetail } from '../../api/app'
-import { mockBusinesses } from '../../common/mock'
 import { SERVICE_TYPE_MAP } from '../../common/config'
 import { resolveImg } from '../../common/util'
 
@@ -137,11 +136,6 @@ const normalizeImages = (data) => {
   })
 }
 
-const fallbackToMock = (id) => {
-  const mock = mockBusinesses.find(b => b.id === id)
-  shop.value = mock ? normalizeImages(mock) : null
-}
-
 onLoad((options) => {
   const id = Number(options.shopId)
   getBusinessDetail(id)
@@ -149,11 +143,6 @@ onLoad((options) => {
       shop.value = normalizeImages(data)
     })
     .catch((e) => {
-      // 网络不可达或后端窗口 06B 接口未实现（未知路由 404）时使用演示数据
-      if (e.statusCode === 0 || (e.statusCode === 404 && e.code === 'ERROR')) {
-        fallbackToMock(id)
-        return
-      }
       uni.showToast({ title: e.message || '商家加载失败', icon: 'none' })
     })
     .finally(() => {

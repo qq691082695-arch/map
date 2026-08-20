@@ -18,6 +18,8 @@ import com.mapvendor.module.business.repository.BusinessMapper;
 import com.mapvendor.module.business.repository.BusinessResourceMapper;
 import com.mapvendor.module.file.repository.FileResourceMapper;
 import com.mapvendor.module.order.repository.AdminOrderMapper;
+import com.mapvendor.module.order.repository.AppOrderCreateMapper;
+import com.mapvendor.module.order.repository.AppOrderQueryMapper;
 import com.mapvendor.module.statistics.repository.AdminStatisticsMapper;
 
 @SpringBootTest(properties = {
@@ -47,6 +49,12 @@ class MapVendorApplicationTest {
 
     @MockBean
     private AdminOrderMapper adminOrderMapper;
+
+    @MockBean
+    private AppOrderCreateMapper appOrderCreateMapper;
+
+    @MockBean
+    private AppOrderQueryMapper appOrderQueryMapper;
 
     @MockBean
     private AdminStatisticsMapper adminStatisticsMapper;

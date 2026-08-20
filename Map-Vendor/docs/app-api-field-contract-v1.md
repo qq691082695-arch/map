@@ -1,6 +1,6 @@
 # 小程序 API 字段与联调契约 v1
 
-状态：窗口 01A 已冻结；`map-overview`、`businesses/{id}` 已实现，其余接口按后续窗口完成。
+状态：窗口 08A 已完成；`map-overview`、`businesses/{id}`、订单创建、按 openid 查询与用户取消均已实现。
 
 依据：`AGENTS.md`、`地图商家预约系统_后端与数据库PRD_v1.6.docx`、`V001__baseline.sql`。如后续需求改变本文件中的冻结项，必须同步更新 PRD、Flyway、OpenAPI 和测试。
 

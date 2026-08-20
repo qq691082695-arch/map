@@ -52,5 +52,8 @@ deploy/                   数据库、Nginx 和运行环境材料
 
 - `local`：便于开发阅读的文本日志。
 - `prod`：JSON 结构化日志，并强制检查数据库密码、Flyway 密码、精确 CORS、HTTPS 文件地址及源码目录外的绝对存储路径。
+- 默认日志目录为 `Map-Vendor/logs`，可通过 `MAP_VENDOR_LOG_PATH` 改为源码目录外的绝对路径。
+- `application.log` 保存 INFO 及以上的完整应用日志；`error.log` 只保存 ERROR 及异常堆栈。日志按日期和大小滚动压缩，归档在 `logs/archive`。
+- 使用 `deploy/windows/run-local.ps1` 时，Maven、JVM 和 Spring 启动全过程同时写入 `logs/startup-yyyyMMdd-HHmmss.log`；即使应用尚未完成 Logback 初始化，启动错误也不会丢失。
 - 访问日志只记录 HTTP 方法、路径、状态码和耗时，不记录查询字符串、请求体、openid、完整手机号或令牌。
 - CI 使用 Corretto JDK 8 执行 `clean verify`，并扫描禁止出现的后端微信登录实现。

@@ -66,7 +66,6 @@ import { ref, computed } from 'vue'
 import { onLoad, onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import { getOrderList, cancelOrder } from '../../api/app'
 import { getOpenid } from '../../common/auth'
-import { getLocalOrders, cancelLocalOrder } from '../../common/local-orders'
 import { SERVICE_TYPE_MAP, ORDER_STATUS_MAP, SERVICE_MODE_MAP, MEAL_PERIOD_MAP } from '../../common/config'
 
 const orders = ref([])
@@ -115,6 +114,12 @@ const selectionText = (o) => {
 }
 
 const load = (silent) => {
+  if (!openid) {
+    orders.value = []
+    loading.value = false
+    uni.showToast({ title: '请先完成微信登录', icon: 'none' })
+    return
+  }
   if (!silent) loading.value = true
   getOrderList({ openid, page: 1, pageSize: 50 })
     .then((data) => {
@@ -123,11 +128,7 @@ const load = (silent) => {
     })
     .catch((e) => {
       loading.value = false
-      if (e.statusCode === 0) {
-        orders.value = getLocalOrders()
-      } else {
-        uni.showToast({ title: e.message || '加载失败', icon: 'none' })
-      }
+      uni.showToast({ title: e.message || '加载失败', icon: 'none' })
     })
 }
 
@@ -152,12 +153,6 @@ const onCancel = (o) => {
           load(true)
         })
         .catch((e) => {
-          if (e.statusCode === 0) {
-            cancelLocalOrder(o.id)
-            uni.showToast({ title: '演示模式：已本地取消', icon: 'none' })
-            load(true)
-            return
-          }
           uni.showToast({ title: e.message || '取消失败', icon: 'none' })
         })
     }

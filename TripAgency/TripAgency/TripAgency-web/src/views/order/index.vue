@@ -14,6 +14,7 @@
         range-separator="至" start-placeholder="服务日期起" end-placeholder="服务日期止"
         :shortcuts="dateShortcuts" @change="handleSearch" />
       <el-button type="primary" :icon="Search" @click="handleSearch">查询</el-button>
+      <el-button :icon="Download" :loading="exporting" @click="exportList">导出 Excel</el-button>
       <el-button @click="handleReset">重置</el-button>
     </div>
 
@@ -93,7 +94,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, CircleCheck, CircleClose } from '@element-plus/icons-vue'
+import { Search, CircleCheck, CircleClose, Download } from '@element-plus/icons-vue'
 import { api } from '@/api'
 
 const statuses = [{ value: 'PENDING', label: '待确认' }, { value: 'CONFIRMED', label: '已确认' }, { value: 'CANCELLED', label: '已取消' }]
@@ -121,6 +122,7 @@ const detailLoading = ref(false)
 const detail = ref({})
 const cancelVisible = ref(false)
 const submitting = ref(false)
+const exporting = ref(false)
 const current = ref({})
 const cancelReason = ref('')
 
@@ -148,6 +150,28 @@ const loadBusinesses = async () => {
 const handleSearch = () => { query.page = 1; fetchList() }
 const handleReset = () => { Object.assign(query, { status: '', type: '', businessId: '', serviceDateRange: [], page: 1 }); fetchList() }
 const handleSizeChange = () => { query.page = 1; fetchList() }
+const exportList = async () => {
+  if (!query.serviceDateRange || query.serviceDateRange.length !== 2) {
+    return ElMessage.warning('请先选择导出的服务日期范围')
+  }
+  exporting.value = true
+  try {
+    const { blob, filename } = await api.exportOrders(query)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+    ElMessage.success('订单已导出')
+  } catch (error) {
+    showError(error)
+  } finally {
+    exporting.value = false
+  }
+}
 const showDetail = async row => {
   detailVisible.value = true
   detailLoading.value = true
