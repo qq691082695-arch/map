@@ -4,9 +4,9 @@
 
 ## 1. 结论与目标边界
 
-1. Java 后端不承担任何登录职责：不提供管理员、商家或小程序登录、改密、密码校验、Session、JWT、Bearer Token、刷新/注销、`wx.login`、`code2Session` 或微信密钥管理。
+1. Java 后端不提供管理员或商家登录、改密、密码校验、Session、JWT、Bearer Token、刷新/注销。小程序仅允许一次性 `code2Session` 静默交换并返回 `openid`，不建立服务端登录态。
 2. `/api/v1/admin/**` 当前不做后端身份认证或授权；管理员后台的前端登录只属于前端本地门禁，不得调用 Java 登录接口，也不得把本地 token 放入后端 `Authorization` 契约。
-3. `/api/v1/app/**` 接收前端传入的 `openid` 作为订单归属辨别字段。它可被伪造，不是认证凭据。
+3. `/api/v1/app/**` 接收 uni-app 缓存并传入的 `openid` 作为订单归属辨别字段。静默交换降低随意构造概率，但订单接口未绑定服务端会话，`openid` 仍不是完整认证凭据。
 4. `business` 是服务商业务数据，不是登录主体；不存在商家账号、商家后台、商家认证上下文、商家数据权限或 `/api/v1/merchant/**`。
 5. 窗口 02B 应以一个发布单元完成数据库迁移、后端代码删除、契约/测试/部署校验更新；不得新增替代登录实现。
 
@@ -42,7 +42,7 @@
 | `module/statistics/package-info.java` | 商家统计描述 | 改为平台管理员全局统计 |
 | `CancelSource.MERCHANT` | 商家取消来源 | 删除；与数据库迁移同窗口发布 |
 
-当前未发现登录 Controller、账号 Repository/Mapper/Service、JWT 解析或签发器、认证 Filter、`UserDetailsService`、Session 存取、微信登录实现。这意味着 02B 是删除遗留骨架，不需要旧新认证双跑。
+当前不保留账号 Repository/Mapper/Service、JWT 解析或签发器、认证 Filter、`UserDetailsService`、Session 存取。小程序静默身份交换是唯一例外，不属于账号登录体系。
 
 ### 2.3 测试、CI 与生成契约
 
@@ -60,7 +60,7 @@
 
 管理员前端 `TripAgency-web` 当前存在 `/login` 页面、`stores/auth.js`、路由守卫和 `api/mock.js` 的本地 `admin/123456`、mock token。它们完全在前端 mock 中运行，当前没有 Java 登录接口，但默认弱口令和“后续接真实后端”的注释容易导致边界回退。
 
-02B 后端清理不得以此前端 token 作为请求凭据。管理员前端实施窗口应改为项目明确批准的纯前端门禁方案，并至少做到：不硬编码默认密码、不把本地 token 当成后端授权、不发送 `Authorization`、不新增 `/api/v1/admin/login`。小程序侧未发现后端微信登录调用；后续只能由前端取得并传入 `openid`。
+02B 后端清理不得以此前端 token 作为请求凭据。管理员前端实施窗口应改为项目明确批准的纯前端门禁方案，并至少做到：不硬编码默认密码、不把本地 token 当成后端授权、不发送 `Authorization`、不新增 `/api/v1/admin/login`。小程序由 uni-app 静默取得临时 code，再由 Java 后端交换 openid；后端不得返回 session_key 或签发令牌。
 
 ## 3. Flyway 兼容方案
 

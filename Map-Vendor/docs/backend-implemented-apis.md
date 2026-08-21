@@ -38,7 +38,7 @@
 
 ### 重要安全边界
 
-- Java 后端当前**不提供管理员登录、微信登录、Session、JWT 或令牌接口**。
+- Java 后端不提供管理员登录、Session、JWT 或令牌接口；小程序仅提供一次性 `code` 换取 `openid` 的静默身份接口。
 - `/api/v1/admin/**` 当前**不做后端登录认证**，生产环境必须通过 Nginx 网络访问限制、HTTPS、限流和审计日志保护。
 - 系统不存在商家账号、商家登录或 `/api/v1/merchant/**`。
 
@@ -180,6 +180,7 @@
 | 方法 | 路径 | 用途 | 主要参数/响应 |
 |---|---|---|---|
 | GET | `/api/v1/app/map-overview` | 小程序地图聚合查询 | 可选 `type=TRAVEL/HOTEL/FOOD`；返回启用高校区域和启用服务商点位 |
+| POST | `/api/v1/app/wechat/session` | 微信静默身份交换 | 请求体含一次性 code；仅返回 openid，不返回 session_key，不创建 Session/JWT |
 | GET | `/api/v1/app/businesses/{id}` | 小程序服务商详情 | 返回 `common + detail` 和启用附属资源 |
 | POST | `/api/v1/app/orders` | 创建预约 | 必填 `Idempotency-Key`；保存快照并创建 `PENDING` 初始日志 |
 | GET | `/api/v1/app/orders` | 按 openid 分页查询订单 | `openid` 必填；手机号脱敏；稳定排序 |

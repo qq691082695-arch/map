@@ -8,8 +8,9 @@
 
 ## 小程序接口
 
-- 微信登录完全由前端完成，Java 后端不实现 `wx.login`、`code2Session`、微信密钥管理、Session 或小程序 JWT。
-- `/api/v1/app/orders` 相关接口接收前端传入的 `openid`，仅用于订单归属辨别。`openid` 可被伪造，不能描述为强认证。
+- 微信小程序在订单功能需要身份时调用 `wx.login`，将一次性临时 `code` 提交到 `POST /api/v1/app/wechat/session`；Java 后端调用微信 `code2Session` 并只返回 `openid`，不返回 `session_key`，不建立 Session 或小程序 JWT。
+- 微信 AppSecret 只能通过服务端环境变量 `MAP_VENDOR_WECHAT_APP_SECRET` 注入，禁止写入源码、前端、OpenAPI、日志或通用配置；生产环境同时显式配置 `MAP_VENDOR_WECHAT_APP_ID`。
+- `/api/v1/app/orders` 相关接口仍接收前端传入的 `openid` 作为订单归属辨别字段。静默交换降低了普通客户端随意构造 openid 的概率，但订单接口本身没有校验 openid 与当前微信会话的绑定，不能描述为完整强认证。
 - 生产环境必须启用 HTTPS、接口限流和审计日志；日志不得记录完整 `openid` 或手机号。
 - 手机号不能替代 `openid` 作为订单归属字段。
 

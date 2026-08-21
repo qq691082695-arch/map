@@ -1,6 +1,10 @@
 // ============小程序 App API 封装（对应 /api/v1/app/** 契约）============
 import { request } from '../common/request'
 
+export function exchangeWechatCode(code) {
+  return request({ url: '/app/wechat/session', method: 'POST', data: { code } })
+}
+
 export function createOrder(payload) {
   return request({ url: '/app/orders', method: 'POST', data: payload, idempotency: true })
 }

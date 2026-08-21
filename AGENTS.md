@@ -33,11 +33,12 @@
 
 ## 3. 小程序用户身份边界
 
-- 微信登录完全由前端完成。
-- 后端不得实现 `wx.login`、`code2Session`、微信登录接口、微信密钥管理或小程序 JWT。
-- App 订单接口接收前端传入的 `openid`，并以其作为订单归属辨别字段。
+- uni-app 在微信小程序启动或订单功能需要身份时静默调用 `uni.login`/`wx.login` 获取一次性 code，不展示登录页面。
+- Java 后端只允许通过 `POST /api/v1/app/wechat/session` 调用微信 `code2Session`，仅向前端返回 `openid`；不得返回或持久化 `session_key`，不得建立 Session、JWT、刷新令牌或小程序账号密码体系。
+- 微信 AppSecret 只能通过服务端环境变量配置，禁止写入 uni-app、仓库通用配置或日志；生产环境缺少 AppID/AppSecret 时必须拒绝启动。
+- uni-app 缓存后端返回的 `openid`，App 订单接口继续接收并以其作为订单归属辨别字段。
 - `wx_user` 仅作 openid 内部映射/记录，不代表后端登录系统。
-- openid 可被伪造，不得描述为强认证；必须使用 HTTPS、限流和日志脱敏并记录风险。
+- 静默交换不等于订单强认证：现有订单接口仍信任客户端传入的 openid，存在重放或篡改风险；不得描述为完整认证，必须使用 HTTPS、交换接口限流和日志脱敏并记录风险。
 - 手机号不能替代 openid 作为订单归属字段。
 
 ## 4. 平台管理员业务边界
@@ -110,7 +111,7 @@
 ## 8. API 命名空间
 
 - `/api/v1/admin/**`：管理员后台业务接口；当前不实现后端登录或认证。
-- `/api/v1/app/**`：小程序接口，不实现后端微信登录。
+- `/api/v1/app/**`：小程序接口；只允许 `/api/v1/app/wechat/session` 承担一次性 code 到 openid 的静默交换，不建立服务端登录态。
 - 禁止创建 `/api/v1/merchant/**` 或商家登录接口。
 - 统一响应包含 `code`、`message`、`data`、`requestId`。
 - 列表默认分页；`pageSize` 最大 100；排序必须稳定。
@@ -159,7 +160,7 @@ deploy/
 
 ## 12. 必测场景
 
-- 后端不存在任何登录接口、账号密码校验、Session、JWT、管理端令牌、微信登录、`code2Session`、微信密钥、商家账号、商家登录或 `/merchant/**`。
+- 后端不存在任何账号密码校验、Session、JWT、管理端令牌、商家账号、商家登录或 `/merchant/**`；微信能力仅限一次性 code2Session 交换接口，且不返回 session_key。
 - `/admin/**` 当前不做后端登录认证；部署时验证 Nginx 网络边界、HTTPS、限流和审计配置。
 - 待确认订单并发确认/取消只能有一个成功。
 - 已确认订单由用户取消必须失败。
@@ -213,7 +214,7 @@ deploy/
 #### 窗口 02A：全量登录认证遗留清理设计
 
 - 盘点管理员与商家登录接口、密码字段、JWT/Session、令牌过滤器、Spring Security 登录规则和相关测试。
-- 明确管理员后台与小程序登录均由前端完成，后端只保留业务接口。
+- 明确管理员后台登录仍由前端完成；小程序由前端静默取 code，后端仅交换 openid，不建立登录态。
 - 设计删除 `sys_admin`、`merchant_account`、`token_version` 和登录认证代码的 Flyway/代码兼容方案。
 - 记录 `/admin/**` 无后端认证的风险与 Nginx 网络访问限制、HTTPS、限流、审计要求。
 

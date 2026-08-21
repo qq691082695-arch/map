@@ -10,3 +10,7 @@ spring:
 logging:
   level:
     com.mapvendor: DEBUG
+
+map-vendor:
+  wechat:
+    app-id: ${MAP_VENDOR_WECHAT_APP_ID:wx71e5c014bf0b02c4}

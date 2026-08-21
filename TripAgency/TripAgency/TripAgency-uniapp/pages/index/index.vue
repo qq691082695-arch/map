@@ -31,10 +31,11 @@
     <!-- 我的预约入口 -->
     <view class="my-orders-btn" hover-class="my-orders-btn-hover" @click="gotoOrders">📋 我的预约</view>
 
-    <!-- 底部大分类按钮 + 点击某类后出现的列表 -->
-    <view class="bottom-panel">
+    <!-- 底部抽屉：分类列表与商家详情在同一区域切换，不再叠加弹窗 -->
+    <view class="bottom-panel" :class="{ 'detail-mode': drawerDetail }">
+      <view class="drawer-handle"></view>
       <!-- 分类大按钮 -->
-      <view class="cat-btns">
+      <view v-if="!drawerDetail" class="cat-btns">
         <view
           class="cat-btn"
           v-for="tab in catTabs"
@@ -49,7 +50,7 @@
       </view>
 
       <!-- 选中分类后展示该类商家列表 -->
-      <view v-if="activeType" class="cat-list-block">
+      <view v-if="activeType && !drawerDetail" class="cat-list-block">
         <view class="list-head">
           <text class="list-title">{{ activeEmoji }} {{ activeLabel }}</text>
           <text class="list-sub">共 {{ filteredShopList.length }} 家</text>
@@ -69,10 +70,10 @@
               :key="item.id"
               :class="['type-' + item.type, { selected: item.id === selectedId }]"
               hover-class="shop-card-hover"
-              @click="openShopPopup(item)"
+              @click="openShopDrawer(item)"
             >
               <view class="card-tag" :class="'tag-' + item.type">{{ item.typeLabel }}</view>
-              <image v-if="item.coverImageUrl" class="card-img" :src="item.coverImageUrl" mode="aspectFill" />
+              <image v-if="item.coverImageUrl" class="card-img" :src="item.coverImageUrl" mode="aspectFit" />
               <view v-else class="card-img card-img-ph"><text class="card-img-emoji">{{ item.emoji }}</text></view>
               <view class="card-name">{{ item.name }}</view>
               <view class="card-addr">📍 {{ item.address }}</view>
@@ -85,30 +86,37 @@
           <text class="list-empty-text">该分类暂无可用商家</text>
         </view>
       </view>
-    </view>
 
-    <!-- 商家详情弹窗 -->
-    <view v-if="popupShow" class="mask" @click="closePopup">
-      <view class="popup" @click.stop>
-        <image v-if="currentShop && currentShop.coverImageUrl" class="popup-banner" :src="currentShop.coverImageUrl" mode="aspectFill" />
-        <view v-else-if="currentShop" class="popup-banner popup-banner-ph">
-          <text class="popup-banner-emoji">{{ currentShop.emoji }}</text>
+      <!-- 商家详情直接替换抽屉内容 -->
+      <view v-if="drawerDetail && currentShop" class="drawer-detail">
+        <view class="drawer-detail-head">
+          <view class="drawer-back" hover-class="drawer-action-hover" @click="closeShopDrawer">‹ 返回列表</view>
+          <view class="drawer-title">商家详情</view>
+          <view class="drawer-close" hover-class="drawer-action-hover" @click="collapseDrawer">收起</view>
         </view>
-        <view class="popup-head" v-if="currentShop">
-          <view class="popup-name">{{ currentShop.name }}</view>
-          <view class="popup-tag" :class="'tag-' + currentShop.type">{{ currentShop.typeLabel }}</view>
-        </view>
-        <view class="popup-body" v-if="currentShop">
-          <view class="popup-row">
-            <text class="popup-row-icon">📍</text>
-            <text class="popup-addr">{{ currentShop.address }}</text>
+
+        <scroll-view scroll-y class="drawer-detail-scroll">
+          <view v-if="currentShop.coverImageUrl" class="drawer-image-wrap" @click="previewShopImage">
+            <image class="drawer-image" :src="currentShop.coverImageUrl" mode="aspectFit" />
+            <view class="image-tip">点击查看原图</view>
           </view>
-          <view class="popup-desc">{{ currentShop.intro }}</view>
-        </view>
+          <view v-else class="drawer-image drawer-image-ph">
+            <text class="drawer-image-emoji">{{ currentShop.emoji }}</text>
+          </view>
 
-        <view class="popup-btn-wrap">
-          <button class="primary-btn" hover-class="btn-hover" @click="gotoDetail">前往预约下单</button>
-          <button class="cancel-btn" hover-class="btn-hover" @click="closePopup">关闭</button>
+          <view class="detail-summary">
+            <view class="detail-name-row">
+              <text class="detail-name">{{ currentShop.name }}</text>
+              <text class="detail-tag" :class="'tag-' + currentShop.type">{{ currentShop.typeLabel }}</text>
+            </view>
+            <view class="detail-address"><text class="detail-icon">📍</text>{{ currentShop.address || '暂无地址' }}</view>
+            <view v-if="currentShop.intro" class="detail-intro">{{ currentShop.intro }}</view>
+          </view>
+        </scroll-view>
+
+        <view class="drawer-actions">
+          <button class="secondary-btn" hover-class="btn-hover" @click="gotoDetail">查看完整详情</button>
+          <button class="primary-btn" hover-class="btn-hover" @click="gotoCreate">立即预约</button>
         </view>
       </view>
     </view>
@@ -116,21 +124,17 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, getCurrentInstance } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getMapOverview } from '../../api/app'
 import { SERVICE_TYPE_MAP } from '../../common/config'
 import { resolveImg } from '../../common/util'
 
-const { proxy } = getCurrentInstance()
-
-const popupShow = ref(false)
 const currentShop = ref(null)
+const drawerDetail = computed(() => Boolean(currentShop.value))
 const activeType = ref('')          // '' 表示未选分类，显示全部商家
 const selectedId = ref(null)        // 地图/列表中当前选中的商家
 const scrollIntoView = ref('')      // 横向列表自动滚动定位
-
-let popupTimer = null               // 弹窗延迟定时器
 
 // 初始视野：聚焦武汉大学主校区（点选点位时中心切换到该点）
 const viewCenter = ref({ longitude: 114.362, latitude: 30.5385 })
@@ -302,10 +306,18 @@ const zoomToShop = (shop) => {
   viewCenter.value = { longitude: shop.longitude, latitude: shop.latitude - latOffset }
 }
 
-// ============关闭弹窗：取消点位高亮，地图保持在当前视野不跳回============
-const closePopup = () => {
-  popupShow.value = false
-  selectedId.value = null      // 取消点位高亮
+// 返回当前分类列表，地图保持在当前视野。
+const closeShopDrawer = () => {
+  currentShop.value = null
+  selectedId.value = null
+}
+
+// 收起整个抽屉详情，回到默认分类入口。
+const collapseDrawer = () => {
+  currentShop.value = null
+  selectedId.value = null
+  activeType.value = ''
+  scrollIntoView.value = ''
 }
 
 // ============marker 列表（随分类过滤，选中态放大）============
@@ -352,11 +364,13 @@ const selected = shop.id === selectedId.value
 const toggleType = (type) => {
   if (activeType.value === type) {
     activeType.value = ''
+    currentShop.value = null
     selectedId.value = null
     scrollIntoView.value = ''
     return
   }
   activeType.value = type
+  currentShop.value = null
   selectedId.value = null
   scrollIntoView.value = ''
   nextTick(() => {
@@ -373,28 +387,33 @@ const onMarkerTap = (e) => {
     activeType.value = shop.type
   }
   selectedId.value = shop.id
-  zoomToShop(shop)                                   // 先放大并让该点居中
   nextTick(() => { scrollIntoView.value = 'card-' + shop.id })
-  clearTimeout(popupTimer)
-  popupTimer = setTimeout(() => showShopPopup(shop), 450)   // 让用户先看到地图变化
+  openShopDrawer(shop)
 }
 
-// 仅打开弹窗（地图点位点击复用，避免重复缩放）
-const showShopPopup = (shopInfo) => {
+// 在底部抽屉内显示商家摘要，不再创建遮罩或居中弹窗。
+const showShopDrawer = (shopInfo) => {
   selectedId.value = shopInfo.id
   currentShop.value = shopInfo
-  popupShow.value = true
 }
 
-// 列表卡片点击：与点击地图点位行为一致，先居中该商家再打开弹窗
-const openShopPopup = (shopInfo) => {
+const openShopDrawer = (shopInfo) => {
   zoomToShop(shopInfo)
-  showShopPopup(shopInfo)
+  showShopDrawer(shopInfo)
+}
+
+const previewShopImage = () => {
+  const url = currentShop.value && currentShop.value.coverImageUrl
+  if (!url) return
+  uni.previewImage({ current: url, urls: [url] })
 }
 
 const gotoDetail = () => {
-  popupShow.value = false
   uni.navigateTo({ url: `/pages/shop/detail?shopId=${currentShop.value.id}` })
+}
+
+const gotoCreate = () => {
+  uni.navigateTo({ url: `/pages/order/create?businessId=${currentShop.value.id}` })
 }
 
 const gotoOrders = () => {
@@ -494,14 +513,27 @@ const gotoOrders = () => {
 /* ==========底部面板========== */
 .bottom-panel {
   position: absolute;
-  left: 20rpx;
-  right: 20rpx;
-  bottom: 40rpx;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 9;
-  background: rgba(255, 255, 255, 0.96);
-  border-radius: 24rpx;
-  padding: 24rpx;
-  box-shadow: 0 12rpx 40rpx rgba(0, 0, 0, 0.14);
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 32rpx 32rpx 0 0;
+  padding: 12rpx 24rpx calc(24rpx + env(safe-area-inset-bottom));
+  box-shadow: 0 -12rpx 44rpx rgba(24, 39, 64, 0.16);
+  transition: height 0.25s ease;
+}
+.bottom-panel.detail-mode {
+  height: 72vh;
+  padding-bottom: calc(18rpx + env(safe-area-inset-bottom));
+}
+.drawer-handle {
+  width: 72rpx;
+  height: 8rpx;
+  margin: 0 auto 16rpx;
+  border-radius: 8rpx;
+  background: #d7dce4;
 }
 
 /* 分类大按钮 */
@@ -574,6 +606,7 @@ const gotoOrders = () => {
 }
 .cat-list-scroll {
   width: 100%;
+  padding-bottom: 4rpx;
 }
 .list-empty {
   padding: 40rpx 0 20rpx;
@@ -639,7 +672,7 @@ const gotoOrders = () => {
   width: 100%;
   height: 160rpx;
   border-radius: 10rpx;
-  background: #eceef2;
+  background: #f3f5f8;
   margin-bottom: 10rpx;
 }
 .card-img-ph {
@@ -676,104 +709,131 @@ const gotoOrders = () => {
   overflow: hidden;
 }
 
-/* ==========弹窗========== */
-.mask {
-  position: fixed;
-  top: 0;
-  left: 0;
+/* ==========商家详情抽屉========== */
+.drawer-detail {
+  height: calc(100% - 24rpx);
+  display: flex;
+  flex-direction: column;
+}
+.drawer-detail-head {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  min-height: 64rpx;
+  margin-bottom: 12rpx;
+}
+.drawer-back,
+.drawer-close {
+  font-size: 25rpx;
+  color: #1677ff;
+  padding: 12rpx 4rpx;
+}
+.drawer-close {
+  text-align: right;
+}
+.drawer-action-hover {
+  opacity: 0.6;
+}
+.drawer-title {
+  font-size: 29rpx;
+  font-weight: 600;
+  color: #1f2937;
+}
+.drawer-detail-scroll {
+  flex: 1;
+  min-height: 0;
+}
+.drawer-image-wrap {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20rpx;
+  background: #f4f6f9;
+}
+.drawer-image {
   width: 100%;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.55);
-  z-index: 99;
+  height: 360rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #f4f6f9;
 }
-.popup {
-  width: 620rpx;
-  max-height: 80vh;
-  overflow-y: auto;
-  background: #fff;
-  border-radius: 24rpx;
-  padding-bottom: 30rpx;
-  box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.25);
-}
-.popup-banner {
-  width: 100%;
-  height: 300rpx;
-  border-radius: 24rpx 24rpx 0 0;
-  background: #f0f2f5;
-}
-.popup-banner-ph {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.drawer-image-ph {
+  border-radius: 20rpx;
   background: linear-gradient(135deg, #f0f4fb 0%, #e4ebf5 100%);
 }
-.popup-banner-emoji {
+.drawer-image-emoji {
   font-size: 120rpx;
   opacity: 0.75;
 }
-.popup-head {
-  display: flex;
-  align-items: center;
-  padding: 24rpx 30rpx 0;
+.image-tip {
+  position: absolute;
+  right: 16rpx;
+  bottom: 14rpx;
+  padding: 7rpx 14rpx;
+  border-radius: 20rpx;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.5);
+  font-size: 21rpx;
 }
-.popup-name {
+.detail-summary {
+  padding: 24rpx 4rpx 18rpx;
+}
+.detail-name-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+}
+.detail-name {
   flex: 1;
-  min-width: 0;
   font-size: 34rpx;
   font-weight: 700;
   color: #1f2329;
+  line-height: 1.35;
 }
-.popup-tag {
+.detail-tag {
   flex-shrink: 0;
-  margin-left: 16rpx;
-  font-size: 24rpx;
-  padding: 4rpx 14rpx;
-  border-radius: 8rpx;
+  margin-top: 4rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 22rpx;
 }
-.popup-body {
-  padding: 16rpx 30rpx 0;
-}
-.popup-row {
-  display: flex;
-  align-items: flex-start;
+.detail-address {
+  margin-top: 16rpx;
   font-size: 26rpx;
   color: #555;
   line-height: 1.6;
 }
-.popup-row-icon {
-  flex-shrink: 0;
-  margin-right: 8rpx;
+.detail-icon {
+  margin-right: 10rpx;
 }
-.popup-addr {
-  flex: 1;
-  word-break: break-all;
-}
-.popup-desc {
+.detail-intro {
   margin-top: 16rpx;
   font-size: 26rpx;
-  color: #666;
+  color: #596273;
   line-height: 1.7;
   background: #f7f8fa;
-  border-radius: 12rpx;
-  padding: 16rpx 18rpx;
+  border-radius: 16rpx;
+  padding: 20rpx;
 }
-.popup-btn-wrap {
-  margin: 30rpx 30rpx 0;
+.drawer-actions {
   display: flex;
-  gap: 20rpx;
+  gap: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid #edf0f4;
 }
 .primary-btn {
-  flex: 1;
+  flex: 1.35;
+  margin: 0;
   background: linear-gradient(135deg, #4a9dff 0%, #1677ff 100%);
   color: #fff;
   font-weight: 500;
+  border-radius: 14rpx;
 }
-.cancel-btn {
+.secondary-btn {
   flex: 1;
-  background: #f0f2f5;
-  color: #555;
+  margin: 0;
+  background: #eef5ff;
+  color: #1677ff;
+  border-radius: 14rpx;
 }
 </style>

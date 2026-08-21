@@ -59,7 +59,8 @@ public class AppOrderCreateService {
         return view(mapper.selectOrder(row.getId()));
     }
 
-    private void normalize(AppOrderCreateRequest r){r.setOpenid(r.getOpenid().trim());r.setContactName(r.getContactName().trim());r.setContactPhone(r.getContactPhone().trim());if(r.getServiceDate().isBefore(LocalDate.now(java.time.ZoneId.of("Asia/Shanghai"))))throw bad("服务日期不能早于今天");}
+    private void normalize(AppOrderCreateRequest r){r.setOpenid(r.getOpenid().trim());if(isDemoIdentity(r.getOpenid()))throw bad("不允许使用演示身份创建订单，请重新进入小程序获取真实 openid");r.setContactName(r.getContactName().trim());r.setContactPhone(r.getContactPhone().trim());if(r.getServiceDate().isBefore(LocalDate.now(java.time.ZoneId.of("Asia/Shanghai"))))throw bad("服务日期不能早于今天");}
+    private boolean isDemoIdentity(String openid){String value=openid.toLowerCase(java.util.Locale.ROOT);return value.startsWith("demo_")||value.startsWith("demo-")||value.startsWith("mock_")||value.startsWith("mock-")||value.startsWith("test_")||value.startsWith("test-");}
     private void validateTypeFields(AppOrderCreateRequest r){
         boolean car=r.getCarId()!=null||r.getCarQuantity()!=null||r.getServiceMode()!=null, room=r.getRoomId()!=null||r.getRoomQuantity()!=null, meal=r.getMealPeriod()!=null;
         if(r.getServiceType()==BusinessType.TRAVEL && !(r.getCarId()!=null&&r.getCarQuantity()!=null&&r.getServiceMode()!=null&&!room&&!meal))throw bad("出行预约字段不完整或包含其他类型字段");

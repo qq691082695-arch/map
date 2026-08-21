@@ -13,9 +13,9 @@ public class OpenApiConfig {
         return new OpenAPI().info(new Info()
                 .title("Map Vendor API")
                 .version("v1")
-                .description("平台管理端和微信小程序预约 API。登录均由前端完成；后端不提供认证。"
+                .description("平台管理端和微信小程序预约 API。小程序通过临时 code 静默换取 openid；不建立 Session 或 JWT。"
                         + " /api/v1/admin/** 必须由 Nginx 网络限制、HTTPS、限流和审计保护。"
-                        + " 小程序 openid 由前端传入，不构成强认证。"));
+                        + " 订单接口仍以 openid 辨别归属，不构成完整授权体系。"));
     }
 
     @Bean

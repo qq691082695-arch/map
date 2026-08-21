@@ -1,7 +1,12 @@
 <script>
+	import { ensureOpenid } from './common/auth'
+
 	export default {
 		onLaunch: function() {
-			console.log('App Launch')
+			// 启动即静默准备身份；不展示登录页面，失败时由订单功能按需重试。
+			ensureOpenid().catch((error) => {
+				console.warn('[Auth] silent openid initialization failed', error && error.message)
+			})
 		},
 		onShow: function() {
 			console.log('App Show')

@@ -1,5 +1,13 @@
 <template>
   <view class="page">
+    <view class="overview-card">
+      <view>
+        <text class="overview-title">我的预约</text>
+        <text class="overview-sub">共 {{ orders.length }} 条预约记录</text>
+      </view>
+      <view class="refresh-btn" :class="{ rotating: refreshing }" hover-class="refresh-hover" @click="refresh">↻</view>
+    </view>
+
     <!-- 状态筛选 -->
     <scroll-view scroll-x class="filter-scroll">
       <view class="filter-row">
@@ -12,12 +20,12 @@
           @click="switchFilter(f.value)"
         >
           <text>{{ f.label }}</text>
-          <text class="filter-count" v-if="countOf(f.value)">{{ countOf(f.value) }}</text>
+          <text class="filter-count">{{ countOf(f.value) }}</text>
         </view>
       </view>
     </scroll-view>
 
-    <view v-if="orders.length" class="order-list">
+    <view v-if="loaded && !errorMessage && orders.length" class="order-list">
       <view class="order-card" :class="'order-' + o.status" v-for="o in filteredOrders" :key="o.id">
         <view class="card-top">
           <view class="biz-line">
@@ -40,7 +48,9 @@
           <text class="row-value">{{ o.cancelReason }}</text>
         </view>
         <view v-if="o.status === 'PENDING'" class="cancel-wrap">
-          <button class="cancel-btn" hover-class="btn-hover" @click="onCancel(o)">取消预约</button>
+          <button class="cancel-btn" :disabled="cancellingId === o.id" hover-class="btn-hover" @click="onCancel(o)">
+            {{ cancellingId === o.id ? '取消中…' : '取消预约' }}
+          </button>
         </view>
       </view>
       <view v-if="!filteredOrders.length" class="empty small">
@@ -48,14 +58,25 @@
       </view>
     </view>
 
-    <view v-else-if="loading" class="empty">
-      <view class="loading-spinner"></view>
-      <text class="empty-text">加载中…</text>
+    <view v-else-if="loading && !loaded" class="skeleton-list">
+      <view class="skeleton-card" v-for="n in 3" :key="n">
+        <view class="skeleton-line wide"></view>
+        <view class="skeleton-line"></view>
+        <view class="skeleton-line short"></view>
+      </view>
+    </view>
+
+    <view v-else-if="errorMessage" class="empty">
+      <view class="empty-emoji">⚠️</view>
+      <text class="empty-title">订单加载失败</text>
+      <text class="empty-text">{{ errorMessage }}</text>
+      <view class="empty-btn" hover-class="btn-hover" @click="retry">重新加载</view>
     </view>
 
     <view v-else class="empty">
       <view class="empty-emoji">🗓</view>
-      <text class="empty-text">暂无预约记录</text>
+      <text class="empty-title">暂无预约记录</text>
+      <text class="empty-text">完成预约后，可以在这里查看处理状态</text>
       <view class="empty-btn" hover-class="btn-hover" @click="goHome">去首页逛逛</view>
     </view>
   </view>
@@ -65,12 +86,18 @@
 import { ref, computed } from 'vue'
 import { onLoad, onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import { getOrderList, cancelOrder } from '../../api/app'
-import { getOpenid } from '../../common/auth'
+import { ensureOpenid } from '../../common/auth'
 import { SERVICE_TYPE_MAP, ORDER_STATUS_MAP, SERVICE_MODE_MAP, MEAL_PERIOD_MAP } from '../../common/config'
 
 const orders = ref([])
 const loading = ref(false)
-const openid = getOpenid()
+const loaded = ref(false)
+const refreshing = ref(false)
+const errorMessage = ref('')
+const cancellingId = ref(null)
+const openid = ref('')
+let requestVersion = 0
+let firstShow = true
 
 const filterTabs = [
   { value: 'ALL', label: '全部' },
@@ -113,32 +140,56 @@ const selectionText = (o) => {
   return ''
 }
 
-const load = (silent) => {
-  if (!openid) {
-    orders.value = []
-    loading.value = false
-    uni.showToast({ title: '请先完成微信登录', icon: 'none' })
-    return
-  }
+const load = ({ silent = false } = {}) => {
+  const version = ++requestVersion
   if (!silent) loading.value = true
-  getOrderList({ openid, page: 1, pageSize: 50 })
+  errorMessage.value = ''
+  return ensureOpenid()
+    .then((value) => {
+      openid.value = value
+      return getOrderList({ openid: value, page: 1, pageSize: 50 })
+    })
     .then((data) => {
+      if (version !== requestVersion) return
       orders.value = (data && data.items) || []
-      loading.value = false
+      loaded.value = true
     })
     .catch((e) => {
+      if (version !== requestVersion) return
+      loaded.value = true
+      errorMessage.value = e.message || '网络连接失败，请稍后重试'
+    })
+    .finally(() => {
+      if (version !== requestVersion) return
       loading.value = false
-      uni.showToast({ title: e.message || '加载失败', icon: 'none' })
+      refreshing.value = false
+      uni.stopPullDownRefresh()
     })
 }
 
-onLoad(() => load(false))
+const refresh = () => {
+  if (refreshing.value || loading.value) return
+  refreshing.value = true
+  load({ silent: true })
+}
+
+const retry = () => load({ silent: false })
+
+onLoad(() => load())
 onShow(() => {
-  if (orders.value.length) load(true)
+  if (firstShow) {
+    firstShow = false
+    return
+  }
+  load({ silent: true })
 })
 onPullDownRefresh(() => {
-  load(true)
-  setTimeout(() => uni.stopPullDownRefresh(), 300)
+  if (refreshing.value || loading.value) {
+    uni.stopPullDownRefresh()
+    return
+  }
+  refreshing.value = true
+  load({ silent: true })
 })
 
 const onCancel = (o) => {
@@ -147,13 +198,19 @@ const onCancel = (o) => {
     content: '确认取消该预约吗？',
     success: (r) => {
       if (!r.confirm) return
-      cancelOrder(o.id, openid)
-        .then((updated) => {
+      if (cancellingId.value) return
+      cancellingId.value = o.id
+      ensureOpenid()
+        .then(value => cancelOrder(o.id, value))
+        .then(() => {
           uni.showToast({ title: '已取消', icon: 'none' })
-          load(true)
+          return load({ silent: true })
         })
         .catch((e) => {
           uni.showToast({ title: e.message || '取消失败', icon: 'none' })
+        })
+        .finally(() => {
+          cancellingId.value = null
         })
     }
   })
@@ -167,13 +224,52 @@ const goHome = () => {
 <style scoped>
 .page {
   min-height: 100vh;
-  background: #f5f6f8;
-  padding: 20rpx 24rpx;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #edf5ff 0, #f5f6f8 320rpx);
+  padding: 24rpx;
+}
+.overview-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  border-radius: 24rpx;
+  color: #fff;
+  background: linear-gradient(135deg, #3d8dff 0%, #1769e8 100%);
+  box-shadow: 0 14rpx 34rpx rgba(22, 105, 232, 0.22);
+}
+.overview-title {
+  display: block;
+  font-size: 36rpx;
+  font-weight: 700;
+}
+.overview-sub {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.82);
+}
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 42rpx;
+}
+.refresh-hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+.refresh-btn.rotating {
+  animation: spin 0.8s linear infinite;
 }
 .filter-scroll {
   width: 100%;
   white-space: nowrap;
-  margin-bottom: 20rpx;
+  margin-bottom: 22rpx;
 }
 .filter-row {
   display: inline-flex;
@@ -184,7 +280,7 @@ const goHome = () => {
   align-items: center;
   padding: 12rpx 28rpx;
   border-radius: 30rpx;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.94);
   border: 2rpx solid #e4e8ef;
   font-size: 26rpx;
   color: #555;
@@ -214,7 +310,8 @@ const goHome = () => {
   border-radius: 20rpx;
   padding: 26rpx 30rpx;
   margin-bottom: 20rpx;
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.05);
+  border: 1rpx solid rgba(220, 226, 236, 0.7);
+  box-shadow: 0 10rpx 30rpx rgba(37, 54, 78, 0.07);
 }
 .order-card::before {
   content: '';
@@ -343,6 +440,8 @@ const goHome = () => {
 }
 .cancel-wrap {
   margin-top: 16rpx;
+  padding-top: 18rpx;
+  border-top: 1rpx solid #f0f2f5;
   display: flex;
   justify-content: flex-end;
 }
@@ -352,6 +451,43 @@ const goHome = () => {
   color: #f56c6c;
   border: 2rpx solid #f56c6c;
   font-size: 26rpx;
+}
+.cancel-btn[disabled] {
+  color: #c0c4cc;
+  border-color: #dcdfe6;
+  background: #f5f7fa;
+}
+.skeleton-list {
+  padding-top: 2rpx;
+}
+.skeleton-card {
+  padding: 34rpx 30rpx;
+  margin-bottom: 20rpx;
+  border-radius: 20rpx;
+  background: #fff;
+}
+.skeleton-line {
+  width: 72%;
+  height: 24rpx;
+  margin-top: 26rpx;
+  border-radius: 12rpx;
+  background: linear-gradient(90deg, #edf0f4 25%, #f7f8fa 37%, #edf0f4 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.3s ease infinite;
+}
+.skeleton-line:first-child {
+  margin-top: 0;
+}
+.skeleton-line.wide {
+  width: 92%;
+  height: 34rpx;
+}
+.skeleton-line.short {
+  width: 48%;
+}
+@keyframes shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
 }
 .empty {
   text-align: center;
@@ -377,8 +513,17 @@ const goHome = () => {
   to { transform: rotate(360deg); }
 }
 .empty-text {
+  display: block;
+  margin-top: 12rpx;
   color: #999;
-  font-size: 28rpx;
+  font-size: 25rpx;
+  line-height: 1.6;
+}
+.empty-title {
+  display: block;
+  color: #333;
+  font-size: 31rpx;
+  font-weight: 600;
 }
 .empty-btn {
   margin: 40rpx auto 0;

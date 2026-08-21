@@ -27,6 +27,8 @@ public class ProductionEnvironmentValidator implements ApplicationRunner {
         }
         require("MAP_VENDOR_DB_PASSWORD");
         require("MAP_VENDOR_FLYWAY_PASSWORD");
+        require("MAP_VENDOR_WECHAT_APP_ID");
+        require("MAP_VENDOR_WECHAT_APP_SECRET");
         require("MAP_VENDOR_CORS_ALLOWED_ORIGINS");
         String publicBaseUrl = require("MAP_VENDOR_PUBLIC_BASE_URL");
         if (!publicBaseUrl.startsWith("https://")) {

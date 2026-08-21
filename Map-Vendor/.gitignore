@@ -3,6 +3,7 @@ target/
 *.iml
 .vscode/
 .env
+config/application-local.yml
 data/
 logs/
 .codex/

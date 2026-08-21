@@ -33,6 +33,8 @@ class ProductionEnvironmentValidatorTest {
         MockEnvironment environment = new MockEnvironment()
                 .withProperty("MAP_VENDOR_DB_PASSWORD", "db-secret")
                 .withProperty("MAP_VENDOR_FLYWAY_PASSWORD", "flyway-secret")
+                .withProperty("MAP_VENDOR_WECHAT_APP_ID", "wx-test-app")
+                .withProperty("MAP_VENDOR_WECHAT_APP_SECRET", "wechat-secret")
                 .withProperty("MAP_VENDOR_CORS_ALLOWED_ORIGINS", "https://admin.example.com")
                 .withProperty("MAP_VENDOR_PUBLIC_BASE_URL", "https://cdn.example.com/files");
         environment.setActiveProfiles("prod");

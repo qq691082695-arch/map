@@ -6,6 +6,7 @@ const generateRequestId = () =>
   `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
 export function request({ url, method = 'GET', data, idempotency }) {
+  const fullUrl = API_BASE_URL + url
   const header = {
     'Content-Type': 'application/json',
     'X-Request-Id': generateRequestId()
@@ -13,9 +14,10 @@ export function request({ url, method = 'GET', data, idempotency }) {
   if (idempotency) {
     header['Idempotency-Key'] = buildIdempotencyKey(data)
   }
+
   return new Promise((resolve, reject) => {
     uni.request({
-      url: API_BASE_URL + url,
+      url: fullUrl,
       method,
       data,
       header,
@@ -34,6 +36,7 @@ export function request({ url, method = 'GET', data, idempotency }) {
         }
       },
       fail: (err) => {
+        console.error(`[Request Fail] ${method} ${fullUrl}`, err)
         reject({ statusCode: 0, code: 'NETWORK_ERROR', message: '网络连接失败', detail: err })
       }
     })

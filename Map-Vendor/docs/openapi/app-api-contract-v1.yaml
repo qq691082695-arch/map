@@ -5,9 +5,10 @@ info:
   description: >-
     小程序联调冻结契约。系统使用者只有微信小程序用户和平台管理员；服务商（business）
     仅是平台管理员维护的业务数据，不是登录角色，不拥有账号、后台或认证上下文。
-    小程序接口接收前端传入的 openid 作为订单归属辨别字段，但这不构成强认证。
-    管理员后台与小程序登录均由前端完成；Java 后端不提供登录、密码校验、Session、JWT
-    或管理端令牌。/api/v1/admin/** 当前无后端认证，必须由 Nginx 网络访问限制、HTTPS、
+    小程序使用 wx.login 临时 code 调用 Java 后端换取 openid，全程不展示登录页面；后端不建立
+    Session 或 JWT。订单接口仍接收 openid 作为归属辨别字段，但这不构成完整授权体系。
+    管理员后台登录仍由前端完成；Java 后端不提供密码校验、Session、JWT 或管理端令牌。
+    /api/v1/admin/** 当前无后端认证，必须由 Nginx 网络访问限制、HTTPS、
     限流和审计保护；不得新增 /api/v1/merchant/**。
     该文件描述目标接口，不代表接口已经实现；实现进度以代码和测试为准。
 servers:
@@ -16,7 +17,34 @@ tags:
   - name: AppMap
   - name: AppBusiness
   - name: AppOrder
+  - name: AppWechatIdentity
 paths:
+  /wechat/session:
+    post:
+      tags: [AppWechatIdentity]
+      summary: 使用微信小程序临时 code 静默换取 openid
+      description: code 只能使用一次且短期有效；AppSecret 仅保存在服务端环境变量中
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/WechatCodeRequest'}
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data: {$ref: '#/components/schemas/WechatIdentity'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '502':
+          description: 微信上游服务不可用
+        '503':
+          description: 服务端未配置微信身份参数
   /map-overview:
     get:
       tags: [AppMap]
@@ -216,6 +244,16 @@ components:
         message: {type: string}
         data: {nullable: true}
         requestId: {type: string, nullable: true}
+    WechatCodeRequest:
+      type: object
+      required: [code]
+      properties:
+        code: {type: string, minLength: 1, maxLength: 256}
+    WechatIdentity:
+      type: object
+      required: [openid]
+      properties:
+        openid: {type: string, minLength: 1, maxLength: 128}
     BusinessType:
       type: string
       enum: [TRAVEL, HOTEL, FOOD]

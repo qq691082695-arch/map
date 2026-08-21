@@ -142,7 +142,7 @@
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getBusinessDetail, createOrder } from '../../api/app'
-import { getOpenid } from '../../common/auth'
+import { ensureOpenid, getOpenid } from '../../common/auth'
 import { today, resolveImg } from '../../common/util'
 import { SERVICE_TYPE_MAP } from '../../common/config'
 
@@ -272,32 +272,29 @@ const buildPayload = () => {
 }
 
 const afterSuccess = (order) => {
-  submitting.value = false
-  uni.showModal({
-    title: '预约提交成功',
-    content: '订单号：' + order.orderNo + '\n当前状态：待管理员确认',
-    confirmText: '查看我的预约',
-    cancelText: '继续逛逛',
-    success: (r) => {
-      if (r.confirm) {
-        uni.redirectTo({ url: '/pages/order/list' })
-      } else {
-        uni.navigateBack()
+  // 成功后保持 submitting=true，避免跳转完成前再次点击产生重复请求。
+  uni.showToast({ title: '预约成功，正在跳转', icon: 'success', duration: 800 })
+  setTimeout(() => {
+    uni.redirectTo({
+      url: '/pages/order/list?createdOrderId=' + order.id,
+      fail: () => {
+        // 极少数路由失败场景允许用户重试跳转，但不会自动再次提交订单。
+        uni.reLaunch({ url: '/pages/order/list' })
       }
-    }
-  })
+    })
+  }, 500)
 }
 
 const submit = () => {
   if (submitting.value) return
-  const err = validate()
-  if (err) {
-    uni.showToast({ title: err, icon: 'none' })
-    return
-  }
-  const payload = buildPayload()
   submitting.value = true
-  createOrder(payload)
+  ensureOpenid()
+    .then((openid) => {
+      form.openid = openid
+      const err = validate()
+      if (err) throw new Error(err)
+      return createOrder(buildPayload())
+    })
     .then((order) => {
       afterSuccess(order)
     })

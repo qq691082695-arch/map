@@ -6,7 +6,7 @@
 
 - 系统使用者只包括微信小程序用户和平台管理员；商家（服务商）仅是平台管理员维护的业务数据，不是系统角色。
 - `/api/v1/admin/**` 当前不做后端登录认证；管理员后台登录完全由前端完成。生产环境必须使用 Nginx 网络访问限制、HTTPS、限流和审计日志降低暴露风险。
-- `/api/v1/app/**` 不实现微信登录或小程序 JWT。订单归属只能使用前端传入并落库的 `openid`，它不是强认证。
+- 小程序通过 `uni.login` 静默取得一次性 code，并调用 `/api/v1/app/wechat/session` 换取 `openid`；后端不返回 `session_key`，不建立 Session/JWT。订单接口仍以客户端传入的 `openid` 辨别归属，不是完整强认证。
 - 后端不提供管理员或商家账号、密码校验、Session、JWT、令牌、商家后台或 `/api/v1/merchant/**`。
 - 订单仅有 `PENDING`、`CONFIRMED`、`CANCELLED`；统计业务日期仅使用 `service_date`。
 - 数据库结构只通过 `src/main/resources/db/migration` 下的 Flyway 脚本变更。
@@ -15,7 +15,7 @@
 
 1. 使用 `C:\Users\18942\.jdks\corretto-1.8.0_432`，或安装其他 JDK 8，并设置 `JAVA_HOME`。
 2. 按 `deploy/mysql/README.md` 创建数据库和最小权限账号。
-3. 复制 `.env.example` 中的变量到本机环境，禁止提交真实密码。
+3. 复制 `.env.example` 中的变量到本机环境，并设置微信 AppID/AppSecret；禁止提交真实密码或 AppSecret。
 4. 使用 `mvnw.cmd clean verify` 构建；首次执行会下载固定版本 Maven。
 5. 使用 `deploy/windows/run-local.ps1` 启动本地环境，或先设置 `SPRING_PROFILES_ACTIVE=local` 再执行 `mvnw.cmd spring-boot:run`。
 
@@ -56,4 +56,4 @@ deploy/                   数据库、Nginx 和运行环境材料
 - `application.log` 保存 INFO 及以上的完整应用日志；`error.log` 只保存 ERROR 及异常堆栈。日志按日期和大小滚动压缩，归档在 `logs/archive`。
 - 使用 `deploy/windows/run-local.ps1` 时，Maven、JVM 和 Spring 启动全过程同时写入 `logs/startup-yyyyMMdd-HHmmss.log`；即使应用尚未完成 Logback 初始化，启动错误也不会丢失。
 - 访问日志只记录 HTTP 方法、路径、状态码和耗时，不记录查询字符串、请求体、openid、完整手机号或令牌。
-- CI 使用 Corretto JDK 8 执行 `clean verify`，并扫描禁止出现的后端微信登录实现。
+- CI 使用 Corretto JDK 8 执行 `clean verify`；微信能力仅允许静默 code2Session 交换，不得扩展为 Session/JWT 登录体系。
