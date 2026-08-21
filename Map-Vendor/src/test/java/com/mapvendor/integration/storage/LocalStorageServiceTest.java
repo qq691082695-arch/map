@@ -89,6 +89,16 @@ class LocalStorageServiceTest {
                 "bad.png", "image/png", script.length)).isInstanceOf(BusinessException.class);
     }
 
+    @Test
+    void rejectsDeclaredAndStreamedContentOverSizeLimit() {
+        byte[] oversized = new byte[1025];
+        assertThatThrownBy(() -> service().store(new ByteArrayInputStream(oversized),
+                "large.png", "image/png", oversized.length)).isInstanceOf(BusinessException.class);
+
+        assertThatThrownBy(() -> service().store(new ByteArrayInputStream(oversized),
+                "large.png", "image/png", 1000)).isInstanceOf(BusinessException.class);
+    }
+
     private LocalStorageService service() {
         StorageProperties properties = new StorageProperties();
         properties.setRoot(directory.toString());
