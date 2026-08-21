@@ -1,10 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.mapvendor.module.business.repository.BusinessResourceMapper">
+  <resultMap id="resourceRowMap" type="com.mapvendor.module.business.repository.BusinessResourceRow">
+    <id column="id" property="id"/>
+    <result column="business_id" property="businessId"/>
+    <result column="name" property="name"/>
+    <result column="seat_num" property="seatNum"/>
+    <result column="bed_spec" property="bedSpec"/>
+    <result column="description" property="description"/>
+    <result column="image_resource_id" property="imageResourceId"/>
+    <result column="image_url" property="imageUrl"/>
+    <result column="sort_no" property="sortNo"/>
+    <result column="status" property="status"/>
+    <result column="created_at" property="createdAt"/>
+    <result column="updated_at" property="updatedAt"/>
+  </resultMap>
   <sql id="cols">r.id,r.business_id,<choose><when test="table == 'business_travel_car'">r.model AS name,r.seat_num,NULL AS bed_spec,NULL AS sort_no</when><when test="table == 'business_hotel_room'">r.name,NULL AS seat_num,r.bed_spec,NULL AS sort_no</when><otherwise>r.name,NULL AS seat_num,NULL AS bed_spec,r.sort_no</otherwise></choose>,r.description,r.image_resource_id,f.public_url AS image_url,r.status,r.created_at,r.updated_at</sql>
   <select id="count" resultType="long">SELECT COUNT(*) FROM ${table} WHERE business_id=#{businessId} AND deleted_at IS NULL <if test="status != null">AND status=#{status}</if></select>
-  <select id="selectPage" resultType="com.mapvendor.module.business.repository.BusinessResourceRow">SELECT <include refid="cols"/> FROM ${table} r LEFT JOIN file_resource f ON f.id=r.image_resource_id AND f.deleted_at IS NULL WHERE r.business_id=#{businessId} AND r.deleted_at IS NULL <if test="status != null">AND r.status=#{status}</if> ORDER BY <choose><when test="table == 'business_food_dish'">r.sort_no ASC,</when><otherwise>r.created_at DESC,</otherwise></choose> r.id DESC LIMIT #{pageSize} OFFSET #{offset}</select>
-  <select id="selectOne" resultType="com.mapvendor.module.business.repository.BusinessResourceRow">SELECT <include refid="cols"/> FROM ${table} r LEFT JOIN file_resource f ON f.id=r.image_resource_id AND f.deleted_at IS NULL WHERE r.id=#{id} AND r.business_id=#{businessId} AND r.deleted_at IS NULL</select>
+  <select id="selectPage" resultMap="resourceRowMap">SELECT <include refid="cols"/> FROM ${table} r LEFT JOIN file_resource f ON f.id=r.image_resource_id AND f.deleted_at IS NULL WHERE r.business_id=#{businessId} AND r.deleted_at IS NULL <if test="status != null">AND r.status=#{status}</if> ORDER BY <choose><when test="table == 'business_food_dish'">r.sort_no ASC,</when><otherwise>r.created_at DESC,</otherwise></choose> r.id DESC LIMIT #{pageSize} OFFSET #{offset}</select>
+  <select id="selectOne" resultMap="resourceRowMap">SELECT <include refid="cols"/> FROM ${table} r LEFT JOIN file_resource f ON f.id=r.image_resource_id AND f.deleted_at IS NULL WHERE r.id=#{id} AND r.business_id=#{businessId} AND r.deleted_at IS NULL</select>
   <insert id="insert" useGeneratedKeys="true" keyProperty="row.id">INSERT INTO ${table}(business_id,<choose><when test="table == 'business_travel_car'">model,seat_num,description,image_resource_id</when><when test="table == 'business_hotel_room'">name,bed_spec,description,image_resource_id</when><otherwise>name,description,image_resource_id,sort_no</otherwise></choose>,status) VALUES(#{row.businessId},<choose><when test="table == 'business_travel_car'">#{row.name},#{row.seatNum},#{row.description},#{row.imageResourceId}</when><when test="table == 'business_hotel_room'">#{row.name},#{row.bedSpec},#{row.description},#{row.imageResourceId}</when><otherwise>#{row.name},#{row.description},#{row.imageResourceId},#{row.sortNo}</otherwise></choose>,#{row.status})</insert>
   <update id="update">UPDATE ${table} SET <choose><when test="table == 'business_travel_car'">model=#{row.name},seat_num=#{row.seatNum},description=#{row.description},image_resource_id=#{row.imageResourceId}</when><when test="table == 'business_hotel_room'">name=#{row.name},bed_spec=#{row.bedSpec},description=#{row.description},image_resource_id=#{row.imageResourceId}</when><otherwise>name=#{row.name},description=#{row.description},image_resource_id=#{row.imageResourceId},sort_no=#{row.sortNo}</otherwise></choose> WHERE id=#{row.id} AND business_id=#{row.businessId} AND deleted_at IS NULL</update>
   <update id="updateStatus">UPDATE ${table} SET status=#{status} WHERE id=#{id} AND business_id=#{businessId} AND deleted_at IS NULL</update>
