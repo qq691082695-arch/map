@@ -43,15 +43,12 @@ public class LocalStorageService implements StorageService {
     @Override
     public StoredFile store(InputStream input, String originalFilename, String declaredContentType, long size)
             throws IOException {
-        validateMetadata(originalFilename, declaredContentType, size);
+        validateMetadata(originalFilename, size);
         byte[] content = readLimited(input, properties.getMaxFileSizeBytes());
         if (content.length != size) {
             throw invalid("文件大小与声明不一致");
         }
         String detectedType = detectType(content);
-        if (!detectedType.equals(declaredContentType.toLowerCase(Locale.ROOT))) {
-            throw invalid("文件内容与 MIME 类型不一致");
-        }
         content = normalizeContent(content, detectedType);
 
         LocalDate now = LocalDate.now();
@@ -107,21 +104,10 @@ public class LocalStorageService implements StorageService {
         Files.deleteIfExists(resolve(storageKey));
     }
 
-    private void validateMetadata(String originalFilename, String contentType, long size) {
+    private void validateMetadata(String originalFilename, long size) {
         if (!StringUtils.hasText(originalFilename) || originalFilename.contains("/")
                 || originalFilename.contains("\\") || originalFilename.contains("..")) {
             throw invalid("非法文件名");
-        }
-        String normalizedType = contentType == null ? "" : contentType.toLowerCase(Locale.ROOT);
-        if (!EXTENSIONS.containsKey(normalizedType)) {
-            throw invalid("仅支持 JPEG、PNG、WebP 图片");
-        }
-        String lowerName = originalFilename.toLowerCase(Locale.ROOT);
-        boolean extensionMatches = normalizedType.equals("image/jpeg")
-                ? lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")
-                : lowerName.endsWith(EXTENSIONS.get(normalizedType));
-        if (!extensionMatches) {
-            throw invalid("文件扩展名与 MIME 类型不一致");
         }
         if (size <= 0 || size > properties.getMaxFileSizeBytes()) {
             throw invalid("文件大小不合法");

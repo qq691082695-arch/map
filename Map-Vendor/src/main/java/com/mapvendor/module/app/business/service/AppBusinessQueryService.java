@@ -60,7 +60,7 @@ public class AppBusinessQueryService {
         }
         List<DishItem> dishes = new ArrayList<DishItem>();
         for (DishRow dish : mapper.selectDishes(row.getId())) {
-            dishes.add(new DishItem(dish.getId(), dish.getName(), dish.getDescription(), dish.getImageUrl()));
+            dishes.add(new DishItem(dish.getId(), dish.getName(), dish.getDescription(), dish.getImageUrl(), dish.getRecommended()));
         }
         return new FoodDetail(BusinessType.FOOD, row.getFoodContactName(), row.getFoodContactPhone(),
                 row.getFoodRecommendedDishes(), dishes);

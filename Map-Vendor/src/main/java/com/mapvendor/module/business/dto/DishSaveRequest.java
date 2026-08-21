@@ -7,8 +7,10 @@ public class DishSaveRequest {
     @Size(max=500) private String description;
     @Positive private Long imageResourceId;
     @NotNull @Min(0) private Integer sortNo;
+    @NotNull private Boolean recommended;
     public String getName(){return name;} public void setName(String v){name=v;}
     public String getDescription(){return description;} public void setDescription(String v){description=v;}
     public Long getImageResourceId(){return imageResourceId;} public void setImageResourceId(Long v){imageResourceId=v;}
     public Integer getSortNo(){return sortNo;} public void setSortNo(Integer v){sortNo=v;}
+    public Boolean getRecommended(){return recommended;} public void setRecommended(Boolean v){recommended=v;}
 }

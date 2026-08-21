@@ -55,6 +55,7 @@ CREATE TABLE business_food_dish (
     business_id BIGINT NOT NULL,
     name VARCHAR(128) NOT NULL,
     description VARCHAR(500),
+    is_recommended BOOLEAN NOT NULL DEFAULT FALSE,
     image_resource_id BIGINT,
     sort_no INT NOT NULL,
     status VARCHAR(16) NOT NULL,

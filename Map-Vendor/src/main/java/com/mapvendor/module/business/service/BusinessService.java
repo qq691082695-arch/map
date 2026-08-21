@@ -82,7 +82,7 @@ public class BusinessService {
         if (request.getBusinessType() == BusinessType.FOOD) {
             row.setFoodContactName(normalize(request.getFoodContactName()));
             row.setFoodContactPhone(normalize(request.getFoodContactPhone()));
-            row.setFoodRecommendedDishes(normalize(request.getFoodRecommendedDishes()));
+            row.setFoodRecommendedDishes(null);
         }
         return row;
     }

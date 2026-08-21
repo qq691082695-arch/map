@@ -5,6 +5,7 @@ public class DishRow {
     private String name;
     private String description;
     private String imageUrl;
+    private Boolean recommended;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -14,4 +15,6 @@ public class DishRow {
     public void setDescription(String description) { this.description = description; }
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public Boolean getRecommended() { return recommended; }
+    public void setRecommended(Boolean recommended) { this.recommended = recommended; }
 }

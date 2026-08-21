@@ -32,6 +32,18 @@ class LocalStorageServiceTest {
     }
 
     @Test
+    void usesDetectedImageTypeWhenBrowserMimeAndExtensionAreWrong() throws Exception {
+        byte[] png = png();
+
+        StoredFile stored = service().store(new ByteArrayInputStream(png), "camera.jpg",
+                "application/octet-stream", png.length);
+
+        assertThat(stored.getMimeType()).isEqualTo("image/png");
+        assertThat(stored.getStorageKey()).endsWith(".png");
+        assertThat(Files.exists(directory.resolve(stored.getStorageKey()))).isTrue();
+    }
+
+    @Test
     void rejectsTruncatedImageSignature() {
         byte[] png = new byte[] {(byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00};
         assertThatThrownBy(() -> service().store(new ByteArrayInputStream(png), "bad.png", "image/png", png.length))

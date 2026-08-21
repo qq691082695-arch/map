@@ -25,6 +25,6 @@ INSERT INTO business_hotel_room VALUES
  (203, 99, '他人房型', '2m', NULL, NULL, 'ENABLED', NULL);
 
 INSERT INTO business_food_dish VALUES
- (301, 12, '推荐菜一', '第一道菜', 100, 2, 'ENABLED', NULL),
- (302, 12, '推荐菜二', '第二道菜', 101, 1, 'ENABLED', NULL),
- (303, 12, '禁用菜品', NULL, NULL, 0, 'DISABLED', NULL);
+ (301, 12, '推荐菜一', '第一道菜', TRUE, 100, 2, 'ENABLED', NULL),
+ (302, 12, '推荐菜二', '第二道菜', TRUE, 101, 1, 'ENABLED', NULL),
+ (303, 12, '禁用菜品', NULL, FALSE, NULL, 0, 'DISABLED', NULL);

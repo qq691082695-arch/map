@@ -296,8 +296,8 @@ components:
       properties: {name: {type: string, maxLength: 128}, bedSpec: {type: string, maxLength: 128}, description: {type: string, maxLength: 500, nullable: true}, imageResourceId: {type: integer, format: int64, nullable: true}}
     DishSaveRequest:
       type: object
-      required: [name, sortNo]
-      properties: {name: {type: string, maxLength: 128}, description: {type: string, maxLength: 500, nullable: true}, imageResourceId: {type: integer, format: int64, nullable: true}, sortNo: {type: integer, minimum: 0}}
+      required: [name, sortNo, recommended]
+      properties: {name: {type: string, maxLength: 128}, description: {type: string, maxLength: 500, nullable: true}, imageResourceId: {type: integer, format: int64, nullable: true}, sortNo: {type: integer, minimum: 0}, recommended: {type: boolean, description: 是否作为推荐菜展示}}
     BusinessResource:
       type: object
       required: [id, businessId, name, status, createdAt, updatedAt]
@@ -311,6 +311,7 @@ components:
         imageResourceId: {type: integer, format: int64, nullable: true}
         imageUrl: {type: string, nullable: true, description: 图片公开访问 URL，不包含存储物理路径}
         sortNo: {type: integer, nullable: true}
+        recommended: {type: boolean, nullable: true, description: 仅菜品使用}
         status: {type: string, enum: [ENABLED, DISABLED]}
         createdAt: {type: string, format: date-time}
         updatedAt: {type: string, format: date-time}

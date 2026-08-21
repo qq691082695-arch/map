@@ -103,6 +103,7 @@ class AppBusinessDetailIntegrationTest {
         assertEquals(2, dishes.size());
         assertEquals(302L, dishes.get(0).get("id").asLong());
         assertEquals("推荐菜二", dishes.get(0).get("name").asText());
+        assertTrue(dishes.get(0).get("recommended").asBoolean());
         assertTrue(dishes.get(0).get("imageUrl").isNull());
         assertEquals(301L, dishes.get(1).get("id").asLong());
         assertEquals("/images/active.png", dishes.get(1).get("imageUrl").asText());

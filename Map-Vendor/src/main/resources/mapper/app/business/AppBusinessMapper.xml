@@ -70,6 +70,7 @@
         SELECT d.id,
                d.name,
                d.description,
+               d.is_recommended AS recommended,
                fr.public_url AS image_url
         FROM business_food_dish d
         LEFT JOIN file_resource fr
